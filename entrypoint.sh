@@ -39,7 +39,7 @@ esac
 DIND_PID=""
 if [[ "${DISABLE_DIND:-false}" != "true" ]]; then
     log "Starting internal Docker daemon (DinD)..."
-    sudo dockerd >/var/log/dockerd.log 2>&1 &
+    dockerd >/var/log/dockerd.log 2>&1 &
     DIND_PID=$!
 
     log "Waiting for the Docker daemon to become ready..."
@@ -63,17 +63,23 @@ fi
 cleanup_dind() {
     if [[ -n "${DIND_PID}" ]] && kill -0 "${DIND_PID}" 2>/dev/null; then
         log "Stopping internal Docker daemon..."
-        sudo kill "${DIND_PID}" 2>/dev/null || true
+        kill "${DIND_PID}" 2>/dev/null || true
         wait "${DIND_PID}" 2>/dev/null || true
     fi
 }
 trap cleanup_dind EXIT
 
 # --- Hand off to the registration/run script -----------------------------------
+# The actions/runner binaries (config.sh/run.sh) refuse to run as root, so we
+# drop privileges to the non-root `runner` user for this step. `runuser` lets
+# root switch users without a password prompt while preserving the environment
+# (needed for GITHUB_PAT / GITHUB_APP_* / RUNNER_* / REPO_URL etc.). dockerd
+# itself keeps running as root in the background, started above.
+#
 # Not using `exec` here (even though it's the entrypoint's last step) because we
 # still need the EXIT trap above to stop the internal dockerd afterwards.
 set +e
-/usr/local/bin/register-and-run.sh
+runuser -u runner --preserve-environment -- /usr/local/bin/register-and-run.sh
 runner_exit_code=$?
 set -e
 exit "${runner_exit_code}"
