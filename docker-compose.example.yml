@@ -14,7 +14,11 @@ services:
     # trade-offs and a rootless alternative.
     privileged: true
     environment:
-      # --- GitHub App authentication (required) ---------------------------
+      # --- Authentication: choose ONE of the two blocks below --------------
+      # Option A: Personal Access Token (simplest)
+      # GITHUB_PAT: "${GITHUB_PAT}"
+
+      # Option B: GitHub App (recommended) ------------------------------------
       GITHUB_APP_ID: "${GITHUB_APP_ID}"
       GITHUB_APP_PRIVATE_KEY: "${GITHUB_APP_PRIVATE_KEY}"
       # Optional: only needed if the App has more than one installation.

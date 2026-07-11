@@ -1,11 +1,17 @@
 # Setting up a GitHub App for this runner
 
-This image authenticates exclusively via a **GitHub App**, not a personal
-access token (PAT). A GitHub App issues short-lived (1 hour) installation
-tokens on demand, which the entrypoint exchanges for an even shorter-lived
-runner registration token **every time the container starts (and again when
-it shuts down, to deregister cleanly)**. You never generate or paste a token
-yourself, and nothing ever goes stale.
+This image supports two authentication modes: a simple **Personal Access
+Token** (`GITHUB_PAT` — see the "Authentication options" section in the main
+[README.md](../README.md) for a 2-step quick start), or the **GitHub App**
+flow documented in detail here. The GitHub App is recommended whenever you
+want a credential that isn't tied to a personal account and can be scoped
+down to just runner management.
+
+A GitHub App issues short-lived (1 hour) installation tokens on demand, which
+the entrypoint exchanges for an even shorter-lived runner registration token
+**every time the container starts (and again when it shuts down, to
+deregister cleanly)**. You never generate or paste a runner token yourself,
+and nothing ever goes stale.
 
 ## 1. Create the GitHub App
 
