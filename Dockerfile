@@ -45,6 +45,8 @@ RUN apt-get update \
         gnupg \
         lsb-release \
         libicu-dev \
+        libatomic1 \
+        libstdc++6 \
         locales \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
