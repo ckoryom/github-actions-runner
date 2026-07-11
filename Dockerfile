@@ -67,10 +67,16 @@ RUN install -m 0755 -d /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Non-root runner user ------------------------------------------------------
+# actions/runner refuses to run config.sh/run.sh as root, so the registration
+# and job-execution steps run as this user (entrypoint.sh switches to it via
+# `runuser` after starting dockerd as root). Passwordless sudo is granted so
+# workflow steps can install packages, matching common self-hosted runner
+# conventions (e.g. GitHub-hosted runners also grant the runner passwordless
+# sudo).
 RUN groupadd docker 2>/dev/null || true \
     && useradd -m -d /home/runner -s /bin/bash runner \
     && usermod -aG docker runner \
-    && echo "runner ALL=(ALL) NOPASSWD: /usr/sbin/dockerd, /usr/bin/dockerd" >> /etc/sudoers
+    && echo "runner ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # --- Download the actions/runner release for the target architecture ---------
 # TARGETARCH is provided automatically by `docker buildx build --platform ...`
