@@ -50,13 +50,24 @@ case "${RUNNER_SCOPE}" in
         ;;
 esac
 
+# Returns a bearer token suitable for calling the registration-token endpoint:
+#   - if GITHUB_PAT is set, use it directly (simplest path, no App required)
+#   - otherwise, mint a fresh GitHub App installation access token
+auth_bearer_token() {
+    if [[ -n "${GITHUB_PAT:-}" ]]; then
+        printf '%s' "${GITHUB_PAT}"
+    else
+        /usr/local/bin/generate-installation-token.sh
+    fi
+}
+
 fetch_registration_token() {
-    local installation_token
-    installation_token=$(/usr/local/bin/generate-installation-token.sh)
+    local bearer_token
+    bearer_token=$(auth_bearer_token)
 
     local response
     response=$(curl -fsSL -X POST \
-        -H "Authorization: Bearer ${installation_token}" \
+        -H "Authorization: Bearer ${bearer_token}" \
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         "${registration_endpoint}")

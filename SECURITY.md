@@ -39,15 +39,28 @@ Mitigations / alternatives:
 - For stronger isolation, consider running this image inside a dedicated,
   disposable VM per job rather than on shared infrastructure.
 
-### 2. No PAT storage — GitHub App authentication only
+### 2. Two supported auth methods — choose your trade-off
 
-This image deliberately does **not** support personal access tokens. A GitHub
-App's private key is scoped to exactly the permissions you grant it
-(e.g., only "Self-hosted runners" at the org level), is not tied to an
-individual human account, can be rotated/revoked independently, and never
-appears in a runner registration token or job log. The entrypoint mints a
-brand-new installation token and registration token on every start and stop —
-nothing long-lived is ever cached inside the container or image.
+This image supports both a **Personal Access Token (PAT)** (`GITHUB_PAT`, the
+simplest option) and a **GitHub App** (`GITHUB_APP_ID` + private key, the
+more restrictive option). We recommend the GitHub App for anything beyond
+personal/experimental use:
+
+- A GitHub App's private key is scoped to exactly the permissions you grant
+  it (e.g., only "Self-hosted runners" at the org level), is not tied to an
+  individual human account, and can be rotated/revoked independently of any
+  person's GitHub account. The entrypoint mints a brand-new installation
+  token and registration token on every start and stop — nothing long-lived
+  is ever cached inside the container or image.
+- A PAT is a single credential that (for classic tokens) is often much
+  broader than "manage runners," and is tied to whichever human account
+  created it. If you use `GITHUB_PAT`, prefer a **fine-grained** token
+  scoped only to the runner-management permission on the specific
+  repo/org, and rotate it before its expiry.
+
+Regardless of which you choose, never bake either credential into the image
+or commit it to source control — pass it in at runtime via a secret store or
+mounted file.
 
 ### 3. Ephemeral by design
 

@@ -11,9 +11,20 @@ fail() {
 }
 
 # --- Basic env validation ----------------------------------------------------
-[[ -n "${GITHUB_APP_ID:-}" ]] || fail "GITHUB_APP_ID is required."
-if [[ -z "${GITHUB_APP_PRIVATE_KEY:-}" && -z "${GITHUB_APP_PRIVATE_KEY_PATH:-}" ]]; then
-    fail "Set GITHUB_APP_PRIVATE_KEY (PEM contents) or GITHUB_APP_PRIVATE_KEY_PATH (mounted file)."
+# Two mutually exclusive auth modes are supported:
+#   1. GitHub App (recommended): GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY[_PATH]
+#   2. Personal Access Token (simpler, less isolated): GITHUB_PAT
+if [[ -n "${GITHUB_PAT:-}" ]]; then
+    log "GITHUB_PAT provided; using Personal Access Token authentication."
+    if [[ -n "${GITHUB_APP_ID:-}" ]]; then
+        log "WARNING: both GITHUB_PAT and GITHUB_APP_ID are set; GITHUB_PAT takes precedence."
+    fi
+elif [[ -n "${GITHUB_APP_ID:-}" ]]; then
+    if [[ -z "${GITHUB_APP_PRIVATE_KEY:-}" && -z "${GITHUB_APP_PRIVATE_KEY_PATH:-}" ]]; then
+        fail "Set GITHUB_APP_PRIVATE_KEY (PEM contents) or GITHUB_APP_PRIVATE_KEY_PATH (mounted file)."
+    fi
+else
+    fail "Set either GITHUB_PAT (simple) or GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY[_PATH] (recommended) for authentication."
 fi
 
 case "${RUNNER_SCOPE:-}" in
