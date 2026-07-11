@@ -67,7 +67,9 @@ Pick **one** of the two authentication options below, then run the container.
 2. Run it:
 
 ```bash
-docker run --rm --privileged \
+docker run -d --privileged \
+  --name docker-runner-1 \
+  --restart unless-stopped \
   -e GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxx \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
@@ -82,7 +84,9 @@ see [Authentication options](#authentication-options) below for the full
 step-by-step, or the deep dive in [docs/github-app-setup.md](docs/github-app-setup.md).
 
 ```bash
-docker run --rm --privileged \
+docker run -d --privileged \
+  --name docker-runner-1 \
+  --restart unless-stopped \
   -e GITHUB_APP_ID=123456 \
   -e GITHUB_APP_PRIVATE_KEY="$(cat my-app.private-key.pem)" \
   -e RUNNER_SCOPE=repo \
@@ -90,6 +94,21 @@ docker run --rm --privileged \
   -e RUNNER_NAME=docker-runner-1 \
   ghcr.io/OWNER/github-actions-runner:latest
 ```
+
+> **Detached mode:** `-d` runs the container in the background and returns
+> your terminal immediately; `--restart unless-stopped` re-launches it (and
+> re-registers, since it's ephemeral) automatically after a host reboot or
+> crash. Since it's `--ephemeral`, the container exits on its own after each
+> job — use an orchestrator (`docker compose`, a systemd unit, or a
+> supervisor) if you want it to keep re-spawning for the next job; see
+> `docker-compose.example.yml` below for a ready-made way to do that.
+>
+> Useful follow-up commands:
+> ```bash
+> docker logs -f docker-runner-1   # tail runner output
+> docker ps --filter name=docker-runner-1   # check it's running
+> docker stop docker-runner-1      # graceful shutdown (deregisters itself)
+> ```
 
 Or use [`docker-compose.example.yml`](docker-compose.example.yml) to run (and
 scale) multiple ephemeral runners at once:

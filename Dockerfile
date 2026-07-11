@@ -12,7 +12,7 @@
 # correctness, security, and long-term maintainability.
 # ---------------------------------------------------------------------------
 ARG UBUNTU_VERSION=24.04
-ARG RUNNER_VERSION=2.321.0
+ARG RUNNER_VERSION=2.335.1
 
 FROM ubuntu:${UBUNTU_VERSION}
 
