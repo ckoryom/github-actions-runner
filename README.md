@@ -184,6 +184,7 @@ private key every single time the container starts or stops.
 | `RUNNER_LABELS` | optional | Comma-separated extra labels |
 | `RUNNER_GROUP` | optional | Runner group name |
 | `DISABLE_DIND` | optional | Set `true` to skip starting the internal Docker daemon (e.g., if you mount the host socket instead) |
+| `DOCKERD_STORAGE_DRIVER` | optional | Storage driver for the internal `dockerd`. Defaults to `vfs` (see note below); override if your host is verified to support nested `overlay2` |
 
 ## How registration & cleanup works
 
@@ -239,6 +240,20 @@ Running an isolated Docker daemon inside the container requires
 `--privileged`, which grants near-root-equivalent access to the host kernel.
 Please read the [Security Policy](SECURITY.md) before deploying this to
 untrusted workflows (e.g., public-repo fork PRs).
+
+## Docker-in-Docker storage driver note
+
+The internal `dockerd` defaults to the `vfs` storage driver instead of
+`overlay2`. Nested Docker-in-Docker almost always runs on top of a host
+filesystem that is itself `overlay2` (containerd's default snapshotter), and
+stacking `overlay2` on `overlay2` frequently fails at runtime — e.g. build
+steps using `docker/setup-buildx-action` or plain `docker build` can fail
+with errors like `failed to mount ...: fstype: overlay ... invalid
+argument`. `vfs` avoids this entirely and is the standard, widely-documented
+workaround for nested DinD, at the cost of slower, non-copy-on-write layer
+storage. If you've verified your specific host/kernel supports nested
+`overlay2`, you can opt back in with `-e DOCKERD_STORAGE_DRIVER=overlay2`
+for faster builds.
 
 ## Contributing
 
