@@ -1,0 +1,36 @@
+# Example docker-compose file for the ephemeral GitHub Actions runner.
+#
+# Copy this to docker-compose.yml, fill in the values below (or export them as
+# shell/CI secrets and reference with ${VAR} substitution), then:
+#
+#   docker compose up --scale runner=3   # start 3 ephemeral runners
+#
+# See docs/github-app-setup.md for how to obtain the GitHub App values, and
+# README.md for the full environment variable reference.
+services:
+  runner:
+    image: ghcr.io/OWNER/github-actions-runner:latest
+    # Docker-in-Docker requires elevated privileges. See SECURITY.md for the
+    # trade-offs and a rootless alternative.
+    privileged: true
+    environment:
+      # --- GitHub App authentication (required) ---------------------------
+      GITHUB_APP_ID: "${GITHUB_APP_ID}"
+      GITHUB_APP_PRIVATE_KEY: "${GITHUB_APP_PRIVATE_KEY}"
+      # Optional: only needed if the App has more than one installation.
+      # GITHUB_APP_INSTALLATION_ID: "${GITHUB_APP_INSTALLATION_ID}"
+
+      # --- Registration scope (choose ONE of repo / org / enterprise) ------
+      RUNNER_SCOPE: "repo"
+      REPO_URL: "https://github.com/OWNER/REPO"
+      # RUNNER_SCOPE: "org"
+      # ORG_NAME: "OWNER"
+      # RUNNER_SCOPE: "enterprise"
+      # ENTERPRISE_NAME: "my-enterprise"
+
+      # --- Optional runner settings ----------------------------------------
+      RUNNER_NAME: "docker-runner"
+      RUNNER_LABELS: "docker,ephemeral"
+      # RUNNER_GROUP: "default"
+      # DISABLE_DIND: "false"
+    restart: "no" # ephemeral runners exit after one job by design
