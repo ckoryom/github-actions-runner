@@ -73,11 +73,20 @@ trap cleanup_dind EXIT
 # The actions/runner binaries (config.sh/run.sh) refuse to run as root, so we
 # drop privileges to the non-root `runner` user for this step. `runuser` lets
 # root switch users without a password prompt while preserving the environment
-# (needed for GITHUB_PAT / GITHUB_APP_* / RUNNER_* / REPO_URL etc.). dockerd
-# itself keeps running as root in the background, started above.
+# (needed for GITHUB_PAT / GITHUB_APP_* / RUNNER_* / REPO_URL etc.). However,
+# --preserve-environment also keeps HOME/USER/LOGNAME pointed at root's values,
+# which breaks tools like git that read $HOME/.gitconfig (EACCES, since
+# `runner` can't read /root). Override them to the runner user's own home
+# before the handoff so everything downstream (git, npm, etc.) behaves as if
+# `runner` had logged in normally. dockerd itself keeps running as root in the
+# background, started above.
 #
 # Not using `exec` here (even though it's the entrypoint's last step) because we
 # still need the EXIT trap above to stop the internal dockerd afterwards.
+export HOME=/home/runner
+export USER=runner
+export LOGNAME=runner
+
 set +e
 runuser -u runner --preserve-environment -- /usr/local/bin/register-and-run.sh
 runner_exit_code=$?
