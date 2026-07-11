@@ -38,8 +38,19 @@ esac
 # --- Docker-in-Docker ---------------------------------------------------------
 DIND_PID=""
 if [[ "${DISABLE_DIND:-false}" != "true" ]]; then
-    log "Starting internal Docker daemon (DinD)..."
-    dockerd >/var/log/dockerd.log 2>&1 &
+    # Default to the `vfs` storage driver for the *inner* dockerd. The outer
+    # host/container filesystem is almost always already overlay2 (containerd's
+    # default snapshotter), and stacking overlayfs-on-overlayfs for nested
+    # Docker-in-Docker frequently fails at runtime with errors like:
+    #   "failed to mount ...: fstype: overlay ... invalid argument"
+    # when the inner daemon tries to prepare a container/buildkit rootfs. `vfs`
+    # has no such restriction (at the cost of slower, non-CoW layer storage) and
+    # is the standard, widely-documented workaround for nested DinD. Override
+    # via DOCKERD_STORAGE_DRIVER if your host is verified to support nested
+    # overlay2 (e.g. some modern kernels do) and you want faster builds.
+    DOCKERD_STORAGE_DRIVER="${DOCKERD_STORAGE_DRIVER:-vfs}"
+    log "Starting internal Docker daemon (DinD, storage-driver=${DOCKERD_STORAGE_DRIVER})..."
+    dockerd --storage-driver="${DOCKERD_STORAGE_DRIVER}" >/var/log/dockerd.log 2>&1 &
     DIND_PID=$!
 
     log "Waiting for the Docker daemon to become ready..."

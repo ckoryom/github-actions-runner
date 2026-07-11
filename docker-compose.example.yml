@@ -37,4 +37,5 @@ services:
       RUNNER_LABELS: "docker,ephemeral"
       # RUNNER_GROUP: "default"
       # DISABLE_DIND: "false"
+      # DOCKERD_STORAGE_DRIVER: "vfs" # default; nested-overlay-safe. Use "overlay2" only if your host supports nested overlayfs.
     restart: "no" # ephemeral runners exit after one job by design
