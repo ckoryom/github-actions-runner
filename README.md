@@ -53,6 +53,25 @@ container never asks you to touch a runner token yourself.
 - 🛡️ **Supply-chain hardened**: Trivy-scanned, cosign-signed, SBOM +
   provenance attested on every publish. See [SECURITY.md](SECURITY.md).
 
+## What sets this apart
+
+Plenty of self-hosted runner images exist. A few things this one does
+differently, all out of the box, with no extra setup:
+
+- **Zero standing runner tokens.** Registration tokens are minted fresh on
+  every start *and* every stop, then discarded — never baked into the image,
+  never reused across restarts, and never left for you to manage by hand.
+- **GitHub App auth as a first-class citizen**, not an afterthought bolted
+  onto a PAT-only design — scoped, key-rotatable, and documented end-to-end
+  in [docs/github-app-setup.md](docs/github-app-setup.md).
+- **Supply-chain verification baked into the release pipeline**: every image
+  is Trivy-scanned, cosign-signed, and shipped with an SBOM and build
+  provenance attestation — not an optional add-on you have to wire up
+  yourself.
+- **One image, three scopes.** Repository, organization, and enterprise
+  registration are all supported from the same image via `RUNNER_SCOPE`,
+  with no separate builds to maintain.
+
 ## Quick start
 
 Pick **one** of the two authentication options below, then run the container.
@@ -242,6 +261,22 @@ right image for your host:
 
 - `linux/amd64`
 - `linux/arm64`
+
+## Image tags
+
+Every publish to `ghcr.io/OWNER/github-actions-runner` produces several tags
+at once, so you can pin to whatever level of stability you need:
+
+| Tag | Example | Meaning |
+| --- | --- | --- |
+| `latest` | `latest` | Most recent build from the default branch. |
+| `{{version}}` | `1.4.0` | Full semantic version, from a `vX.Y.Z` git tag. |
+| `{{major}}.{{minor}}` | `1.4` | Rolling minor version — updates with patch releases. |
+| `runner-<version>` | `runner-2.335.1` | The exact baked-in `actions/runner` version, independent of this image's own release cadence — use this if you need to pin to a specific runner build regardless of image version. |
+| short SHA | `sha-abc1234` | The exact commit the image was built from. |
+
+Use semver tags for general use, `runner-<version>` when you need a specific
+`actions/runner` release, and the short SHA for fully reproducible pins.
 
 ## Compatibility note
 
