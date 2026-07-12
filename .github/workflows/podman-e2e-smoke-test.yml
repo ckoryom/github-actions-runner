@@ -4,7 +4,7 @@ on:
     branches: [podman-alpine-spike]
 jobs:
   smoke:
-    runs-on: [self-hosted, podman-alpine-spike-test]
+    runs-on: [self-hosted, podman-alpine-spike-test2]
     steps:
       - uses: actions/checkout@v4
       - name: shell step
