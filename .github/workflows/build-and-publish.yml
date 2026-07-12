@@ -44,6 +44,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine runner version
+        id: runner_version
+        run: |
+          if [ -n "${{ github.event.inputs.runner_version }}" ]; then
+            version="${{ github.event.inputs.runner_version }}"
+          else
+            version="$(grep -m1 '^ARG RUNNER_VERSION=' Dockerfile | cut -d= -f2)"
+          fi
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
@@ -53,6 +63,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=runner-${{ steps.runner_version.outputs.value }}
             type=sha,format=short
 
       - name: Build and push

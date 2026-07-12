@@ -6,17 +6,12 @@
 runner. Authenticate the simple way with a PAT, or the more secure way with
 a GitHub App — either way, no one ever babysits an expiring token again.**
 
-[![Build and Publish](https://github.com/OWNER/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/build-and-publish.yml)
-[![CI](https://github.com/OWNER/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/OWNER/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/OWNER/github-actions-runner/badge)](https://securityscorecards.dev/viewer/?uri=github.com/OWNER/github-actions-runner)
+[![Build and Publish](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml)
+[![CI](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ckoryom/github-actions-runner/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ckoryom/github-actions-runner)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GHCR](https://img.shields.io/badge/ghcr.io-OWNER%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/OWNER/github-actions-runner/pkgs/container/github-actions-runner)
-[![Platforms](https://img.shields.io/badge/platforms-linux%2Famd64%20%7C%20linux%2Farm64-informational)](#supported-architectures)
-[![Base: Ubuntu 24.04 LTS](https://img.shields.io/badge/base-Ubuntu%2024.04%20LTS-E95420?logo=ubuntu&logoColor=white)](Dockerfile)
-[![Docker-in-Docker](https://img.shields.io/badge/docker--in--docker-enabled-2496ED?logo=docker&logoColor=white)](#authentication-options)
-[![Ephemeral](https://img.shields.io/badge/lifecycle-ephemeral-success)](#how-registration--cleanup-works)
-[![Auth: PAT or GitHub App](https://img.shields.io/badge/auth-PAT%20or%20GitHub%20App-181717?logo=github)](#authentication-options)
+[![GHCR](https://img.shields.io/badge/ghcr.io-ckoryom%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/ckoryom/github-actions-runner/pkgs/container/github-actions-runner)
 
 </div>
 
@@ -52,6 +47,25 @@ container never asks you to touch a runner token yourself.
 - 🏗️ **Multi-arch**: `linux/amd64` and `linux/arm64` published together.
 - 🛡️ **Supply-chain hardened**: Trivy-scanned, cosign-signed, SBOM +
   provenance attested on every publish. See [SECURITY.md](SECURITY.md).
+
+## What sets this apart
+
+Plenty of self-hosted runner images exist. A few things this one does
+differently, all out of the box, with no extra setup:
+
+- **Zero standing runner tokens.** Registration tokens are minted fresh on
+  every start *and* every stop, then discarded — never baked into the image,
+  never reused across restarts, and never left for you to manage by hand.
+- **GitHub App auth as a first-class citizen**, not an afterthought bolted
+  onto a PAT-only design — scoped, key-rotatable, and documented end-to-end
+  in [docs/github-app-setup.md](docs/github-app-setup.md).
+- **Supply-chain verification baked into the release pipeline**: every image
+  is Trivy-scanned, cosign-signed, and shipped with an SBOM and build
+  provenance attestation — not an optional add-on you have to wire up
+  yourself.
+- **One image, three scopes.** Repository, organization, and enterprise
+  registration are all supported from the same image via `RUNNER_SCOPE`,
+  with no separate builds to maintain.
 
 ## Quick start
 
@@ -242,6 +256,22 @@ right image for your host:
 
 - `linux/amd64`
 - `linux/arm64`
+
+## Image tags
+
+Every publish to `ghcr.io/ckoryom/github-actions-runner` produces several tags
+at once, so you can pin to whatever level of stability you need:
+
+| Tag | Example | Meaning |
+| --- | --- | --- |
+| `latest` | `latest` | Most recent build from the default branch. |
+| `{{version}}` | `1.4.0` | Full semantic version, from a `vX.Y.Z` git tag. |
+| `{{major}}.{{minor}}` | `1.4` | Rolling minor version — updates with patch releases. |
+| `runner-<version>` | `runner-2.335.1` | The exact baked-in `actions/runner` version, independent of this image's own release cadence — use this if you need to pin to a specific runner build regardless of image version. |
+| short SHA | `sha-abc1234` | The exact commit the image was built from. |
+
+Use semver tags for general use, `runner-<version>` when you need a specific
+`actions/runner` release, and the short SHA for fully reproducible pins.
 
 ## Compatibility note
 
