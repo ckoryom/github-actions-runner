@@ -1,0 +1,186 @@
+diff --git a/src/Directory.Build.props b/src/Directory.Build.props
+index 9c069b1..ab6acb7 100644
+--- a/src/Directory.Build.props
++++ b/src/Directory.Build.props
+@@ -44,6 +44,12 @@
+   <PropertyGroup Condition="'$(BUILD_OS)' == 'Linux' AND '$(PackageRuntime)' == 'linux-arm64'">
+     <DefineConstants>$(DefineConstants);ARM64</DefineConstants>
+   </PropertyGroup>
++  <PropertyGroup Condition="'$(BUILD_OS)' == 'Linux' AND '$(PackageRuntime)' == 'linux-musl-x64'">
++    <DefineConstants>$(DefineConstants);X64</DefineConstants>
++  </PropertyGroup>
++  <PropertyGroup Condition="'$(BUILD_OS)' == 'Linux' AND '$(PackageRuntime)' == 'linux-musl-arm64'">
++    <DefineConstants>$(DefineConstants);ARM64</DefineConstants>
++  </PropertyGroup>
+ 
+   <!-- Set TRACE/DEBUG vars -->
+   <PropertyGroup>
+diff --git a/src/Misc/externals.sh b/src/Misc/externals.sh
+index 4330017..9851b9c 100755
+--- a/src/Misc/externals.sh
++++ b/src/Misc/externals.sh
+@@ -187,3 +187,11 @@ fi
+ if [[ "$PACKAGERUNTIME" == "linux-arm" ]]; then
+     acquireExternalTool "$NODE_URL/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-armv7l.tar.gz" node20 fix_nested_dir
+ fi
++
++# musl (Alpine) host: use the Alpine-built node tarballs directly as the
++# runner's own node20/node24 (not just the node20_alpine/node24_alpine
++# fallback used for Alpine *job containers* on a glibc host).
++if [[ "$PACKAGERUNTIME" == "linux-musl-x64" ]]; then
++    acquireExternalTool "$NODE_ALPINE_URL/v${NODE20_VERSION}/node-v${NODE20_VERSION}-alpine-x64.tar.gz" node20
++    acquireExternalTool "$NODE_ALPINE_URL/v${NODE24_VERSION}/node-v${NODE24_VERSION}-alpine-x64.tar.gz" node24
++fi
+diff --git a/src/Misc/layoutroot/config.sh b/src/Misc/layoutroot/config.sh
+index 14cc6ba..318037c 100755
+--- a/src/Misc/layoutroot/config.sh
++++ b/src/Misc/layoutroot/config.sh
+@@ -51,12 +51,25 @@ then
+         LDCONFIG_COMMAND="ldconfig"
+     fi
+ 
+-    libpath=${LD_LIBRARY_PATH:-}
+-    $LDCONFIG_COMMAND -NXv ${libpath//:/ } 2>&1 | grep libicu >/dev/null 2>&1
+-    if [ $? -ne 0 ]; then
+-        echo "Libicu's dependencies is missing for Dotnet Core 6.0"
+-        echo $message
+-        exit 1
++    # musl (Alpine) doesn't populate an ldconfig cache the way glibc does, so
++    # `ldconfig -NXv | grep libicu` is always a false negative here even when
++    # icu-libs is installed. Detect musl via `ldd --version` and instead
++    # confirm libicu is resolvable directly, matching how it's actually
++    # loaded at runtime.
++    if ldd --version 2>&1 | grep -qi musl; then
++        if ! ldconfig -p 2>/dev/null | grep -qi libicu && ! find /usr/lib /lib -maxdepth 1 -name 'libicu*.so*' 2>/dev/null | grep -q .; then
++            echo "Libicu's dependencies is missing for Dotnet Core 6.0"
++            echo $message
++            exit 1
++        fi
++    else
++        libpath=${LD_LIBRARY_PATH:-}
++        $LDCONFIG_COMMAND -NXv ${libpath//:/ } 2>&1 | grep libicu >/dev/null 2>&1
++        if [ $? -ne 0 ]; then
++            echo "Libicu's dependencies is missing for Dotnet Core 6.0"
++            echo $message
++            exit 1
++        fi
+     fi
+ fi
+ 
+diff --git a/src/Runner.Common/Runner.Common.csproj b/src/Runner.Common/Runner.Common.csproj
+index 96b417c..eb9f223 100644
+--- a/src/Runner.Common/Runner.Common.csproj
++++ b/src/Runner.Common/Runner.Common.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Library</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+     <Version>$(Version)</Version>
+diff --git a/src/Runner.Listener/Runner.Listener.csproj b/src/Runner.Listener/Runner.Listener.csproj
+index 8bf31b3..a67f216 100644
+--- a/src/Runner.Listener/Runner.Listener.csproj
++++ b/src/Runner.Listener/Runner.Listener.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Exe</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <SelfContained>true</SelfContained>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Runner.PluginHost/Runner.PluginHost.csproj b/src/Runner.PluginHost/Runner.PluginHost.csproj
+index 81a8d2e..c022ca6 100644
+--- a/src/Runner.PluginHost/Runner.PluginHost.csproj
++++ b/src/Runner.PluginHost/Runner.PluginHost.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Exe</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <SelfContained>true</SelfContained>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Runner.Plugins/Runner.Plugins.csproj b/src/Runner.Plugins/Runner.Plugins.csproj
+index a786cf1..92f9768 100644
+--- a/src/Runner.Plugins/Runner.Plugins.csproj
++++ b/src/Runner.Plugins/Runner.Plugins.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Library</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <SelfContained>true</SelfContained>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Runner.Sdk/Runner.Sdk.csproj b/src/Runner.Sdk/Runner.Sdk.csproj
+index 6d6cf6e..067f190 100644
+--- a/src/Runner.Sdk/Runner.Sdk.csproj
++++ b/src/Runner.Sdk/Runner.Sdk.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Library</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <SelfContained>true</SelfContained>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Runner.Worker/Runner.Worker.csproj b/src/Runner.Worker/Runner.Worker.csproj
+index cef4fcf..c3872cd 100644
+--- a/src/Runner.Worker/Runner.Worker.csproj
++++ b/src/Runner.Worker/Runner.Worker.csproj
+@@ -3,7 +3,7 @@
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
+     <OutputType>Exe</OutputType>
+-    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++    <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+     <SelfContained>true</SelfContained>
+     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+     <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Sdk/Sdk.csproj b/src/Sdk/Sdk.csproj
+index 8479d48..5738cec 100644
+--- a/src/Sdk/Sdk.csproj
++++ b/src/Sdk/Sdk.csproj
+@@ -3,7 +3,7 @@
+     <PropertyGroup>
+         <TargetFramework>net8.0</TargetFramework>
+         <OutputType>Library</OutputType>
+-        <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++        <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+         <!-- <SelfContained>true</SelfContained> -->
+         <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+         <NoWarn>NU1701;NU1603;SYSLIB0050;SYSLIB0051</NoWarn>
+diff --git a/src/Test/Test.csproj b/src/Test/Test.csproj
+index a5a19ae..411b33a 100644
+--- a/src/Test/Test.csproj
++++ b/src/Test/Test.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+     <PropertyGroup>
+         <TargetFramework>net8.0</TargetFramework>
+-        <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
++        <RuntimeIdentifiers>win-x64;win-x86;linux-x64;linux-arm64;linux-arm;linux-musl-x64;linux-musl-arm64;osx-x64;osx-arm64;win-arm64</RuntimeIdentifiers>
+         <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+         <NoWarn>NU1701;NU1603;NU1603;xUnit2013;SYSLIB0050;SYSLIB0051</NoWarn>
+     </PropertyGroup>
+diff --git a/src/dev.sh b/src/dev.sh
+index fafdbff..01220f9 100755
+--- a/src/dev.sh
++++ b/src/dev.sh
+@@ -80,7 +80,7 @@ if [[ "$CURRENT_PLATFORM" == 'windows' ]]; then
+         exit 1
+     fi
+ elif [[ "$CURRENT_PLATFORM" == 'linux' ]]; then
+-    if [[ ("$RUNTIME_ID" != 'linux-x64') && ("$RUNTIME_ID" != 'linux-x86') && ("$RUNTIME_ID" != 'linux-arm64') && ("$RUNTIME_ID" != 'linux-arm') ]]; then
++    if [[ ("$RUNTIME_ID" != 'linux-x64') && ("$RUNTIME_ID" != 'linux-x86') && ("$RUNTIME_ID" != 'linux-arm64') && ("$RUNTIME_ID" != 'linux-arm') && ("$RUNTIME_ID" != 'linux-musl-x64') && ("$RUNTIME_ID" != 'linux-musl-arm64') ]]; then
+        echo "Failed: Can't build $RUNTIME_ID package $CURRENT_PLATFORM" >&2
+        exit 1
+     fi
