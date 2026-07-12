@@ -1,0 +1,20 @@
+name: Alpine runner e2e smoke test (temporary)
+
+on:
+  push:
+    branches:
+      - alpine-musl-runner-spike
+
+jobs:
+  smoke-test:
+    runs-on: [self-hosted, alpine-slim-e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell step
+        run: |
+          echo "Running on: $(uname -a)"
+      - name: Nested docker build
+        run: |
+          mkdir -p /tmp/e2e-build && cd /tmp/e2e-build
+          printf 'FROM alpine:3.20\nRUN echo hello-from-nested-build-slim\n' > Dockerfile
+          docker build -t e2e-smoke-test-slim .
