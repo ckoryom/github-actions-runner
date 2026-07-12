@@ -3,13 +3,17 @@
 # GitHub Actions ephemeral self-hosted runner
 # Ubuntu 24.04 LTS base + Docker-in-Docker, multi-arch (linux/amd64, linux/arm64)
 #
-# NOTE: an Alpine-based variant was evaluated but is not viable today: the
-# official actions/runner release binaries are glibc/.NET builds and fail at
-# `./config.sh` on musl libc even with the gcompat shim installed
+# NOTE: the official actions/runner release binaries are glibc/.NET builds
+# and fail at `./config.sh` on musl libc even with the gcompat shim installed
 # ("Error relocating ./bin/libcoreclr.so: __isnan: symbol not found"). This is
-# a known, unresolved upstream limitation (actions/runner#585). Ubuntu is the
-# officially supported platform for the runner binary, so it is used here for
-# correctness, security, and long-term maintainability.
+# a known, unresolved upstream limitation (actions/runner#585). Ubuntu remains
+# the default image here for correctness and long-term maintainability.
+#
+# See Dockerfile.alpine for an experimental, smaller (~49%) alternative that
+# works around this by compiling actions/runner from source against the
+# linux-musl-x64/linux-musl-arm64 .NET Runtime Identifiers instead of relying
+# on the prebuilt glibc release (see patches/README.md and the README
+# "Compatibility note" for details and the size comparison).
 # ---------------------------------------------------------------------------
 ARG UBUNTU_VERSION=24.04
 ARG RUNNER_VERSION=2.335.1

@@ -275,13 +275,37 @@ Use semver tags for general use, `runner-<version>` when you need a specific
 
 ## Compatibility note
 
-This image is built on **Ubuntu 24.04 LTS**, the officially supported
-platform for the `actions/runner` binaries. An Alpine variant was evaluated
-but is not currently viable: the official runner release is a glibc/.NET
-build that fails at `./config.sh` on musl libc (`Error relocating
-./bin/libcoreclr.so: __isnan: symbol not found`), even with the `gcompat`
-shim installed — a known, unresolved upstream limitation
-([actions/runner#585](https://github.com/actions/runner/issues/585)).
+This image is built on **Ubuntu 24.04 LTS**. The official `actions/runner`
+*release* binary is a glibc/.NET build and fails at `./config.sh` on musl
+libc (`Error relocating ./bin/libcoreclr.so: __isnan: symbol not found`),
+even with the `gcompat` shim installed — a known, unresolved upstream
+limitation ([actions/runner#585](https://github.com/actions/runner/issues/585)).
+
+An experimental **Alpine variant** (`Dockerfile.alpine`) is now available
+that works around this by compiling `actions/runner` from source targeting
+the `linux-musl-x64`/`linux-musl-arm64` .NET Runtime Identifiers instead of
+using the prebuilt glibc release — `.NET` officially supports musl
+self-contained builds (see Microsoft's own `dotnet/runtime:*-alpine`
+images), the stock `actions/runner` build scripts just don't expose that RID
+by default. See `patches/README.md` for exactly what's patched. This has
+been verified end-to-end: registering as an ephemeral runner, running
+`actions/checkout@v4` (a JS action, via the bundled Alpine Node build), a
+shell step, and a nested `docker build` all succeed on Alpine with no
+glibc/gcompat shim required.
+
+### Image size comparison
+
+| Image | Base | Size | Notes |
+| --- | --- | --- | --- |
+| `Dockerfile` | Ubuntu 24.04 | ~1.81 GB | Official, fully supported `actions/runner` release binary. |
+| `Dockerfile.alpine` | Alpine 3.20 | ~918 MB (**~49% smaller**) | Source-built musl runner (this repo's patch); experimental. |
+| *(bonus, not shipped)* | Chainguard Wolfi | ~1.12 GB | glibc-based, stock official release binary, no patching needed — a smaller-than-Ubuntu fallback if the Alpine/musl approach is ever reverted. |
+
+Trade-off: the Alpine image requires building `actions/runner` from source
+against a project-maintained patch, which is a new build/maintenance burden
+(the patch must be re-verified on every `RUNNER_VERSION` bump). Ubuntu
+remains the default/primary image for correctness and long-term
+maintainability; Alpine is offered as a smaller, opt-in alternative.
 
 ## Docker-in-Docker security note
 
