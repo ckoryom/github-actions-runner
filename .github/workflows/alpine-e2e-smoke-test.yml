@@ -2,6 +2,9 @@ name: Alpine runner e2e smoke test (temporary)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - alpine-musl-runner-spike
 
 jobs:
   smoke-test:
