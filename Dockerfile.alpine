@@ -23,6 +23,15 @@ FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-alpine AS builder
 
 ARG RUNNER_VERSION
 ARG TARGETARCH
+# Node 20 is deprecated for GitHub Actions (JS actions now default to Node 24
+# as of June 2026; Node 20 is fully removed in September 2026) and this
+# image's own end-to-end test confirmed the platform already forces Node 24
+# by default regardless of what an action.yml declares. The bundled node20
+# binary (~100MB, musl-static) is therefore unused in the common case, so it
+# is dropped by default to shrink the image. Set INCLUDE_NODE20=true to keep
+# it if you still rely on ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true to
+# opt back into Node 20 for legacy actions during the transition window.
+ARG INCLUDE_NODE20=false
 
 RUN apk add --no-cache bash git icu-libs curl
 
@@ -44,6 +53,11 @@ RUN set -eux; \
     cd runner-src/src \
     && ./dev.sh layout Release "${MUSL_RID}"
 
+RUN if [ "${INCLUDE_NODE20}" != "true" ]; then \
+        echo "Dropping bundled node20 (set --build-arg INCLUDE_NODE20=true to keep it)"; \
+        rm -rf /work/runner-src/_layout/externals/node20; \
+    fi
+
 # --- Final: Alpine runtime image ------------------------------------------
 FROM alpine:${ALPINE_VERSION}
 
@@ -62,7 +76,10 @@ ENV LANG=en_US.UTF-8 \
 # --- Base OS deps -------------------------------------------------------------
 # libstdc++/libgcc + icu-libs are the only extra runtime libs the
 # musl-built Runner.Listener needs (confirmed via `ldd`); everything else
-# here mirrors the tool list installed on the Ubuntu image.
+# here mirrors the tool list installed on the Ubuntu image. `gnupg` is
+# intentionally NOT installed here: on Ubuntu it's only needed to import
+# Docker's apt repo signing key, but this image installs Docker via `apk`
+# (no GPG key import step), so it would be dead weight.
 RUN apk add --no-cache \
         bash \
         curl \
@@ -74,7 +91,6 @@ RUN apk add --no-cache \
         tar \
         gzip \
         sudo \
-        gnupg \
         util-linux \
         libstdc++ \
         libgcc \
