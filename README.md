@@ -295,11 +295,12 @@ glibc/gcompat shim required.
 
 ### Image size comparison
 
-| Image | Base | Size | Notes |
-| --- | --- | --- | --- |
-| `Dockerfile` | Ubuntu 24.04 | ~1.81 GB | Official, fully supported `actions/runner` release binary. |
-| `Dockerfile.alpine` | Alpine 3.20 | ~757 MB (**~58% smaller**) | Source-built musl runner (this repo's patch); experimental. Drops the deprecated `node20` bundle and the unused `gnupg` package (see below). |
-| *(bonus, not shipped)* | Chainguard Wolfi | ~1.12 GB | glibc-based, stock official release binary, no patching needed — a smaller-than-Ubuntu fallback if the Alpine/musl approach is ever reverted. |
+| Image | Base | Container engine | Size | Notes |
+| --- | --- | --- | --- | --- |
+| `Dockerfile` | Ubuntu 24.04 | Docker Engine (apt) | ~1.81 GB | Official, fully supported `actions/runner` release binary. |
+| `Dockerfile.alpine` | Alpine 3.20 | Docker Engine (apk) | ~757 MB (**~58% smaller**) | Source-built musl runner (this repo's patch); experimental. Drops the deprecated `node20` bundle and the unused `gnupg` package (see below). |
+| `Dockerfile.alpine-podman` | Alpine 3.20 | Podman + `podman-docker` shim | ~483 MB (**~73% smaller than Ubuntu, ~36% smaller than the Docker-Alpine variant**) | Same source-built musl runner; replaces the whole Docker Engine stack (docker-engine + containerd + docker-cli + docker-cli-buildx + runc, ~270 MB) with Podman (daemonless, ~89 MB). See "Podman variant" below. |
+| *(bonus, not shipped)* | Chainguard Wolfi | Docker Engine | ~1.12 GB | glibc-based, stock official release binary, no patching needed — a smaller-than-Ubuntu fallback if the Alpine/musl approach is ever reverted. |
 
 `Dockerfile.alpine` was further trimmed from an initial ~918 MB:
 - **`gnupg` removed (~unused, several MB with its dependency tree):** it was only ever needed on Ubuntu to import Docker's apt repo signing key; this image installs Docker via `apk`, so gnupg had no purpose here.
@@ -310,6 +311,56 @@ against a project-maintained patch, which is a new build/maintenance burden
 (the patch must be re-verified on every `RUNNER_VERSION` bump). Ubuntu
 remains the default/primary image for correctness and long-term
 maintainability; Alpine is offered as a smaller, opt-in alternative.
+
+### Podman variant (`Dockerfile.alpine-podman`)
+
+Built on top of the Alpine/musl runner to test whether replacing Docker with
+[Podman](https://podman.io/) shrinks the image further — it does, by another
+~274 MB (~36%) on top of the Docker-Alpine variant, for ~73% smaller than
+Ubuntu overall. Podman is daemonless (no `dockerd` background process to
+start/wait for) and Alpine's `podman-docker` package installs a `/usr/bin/docker`
+shim that forwards to `podman`, so `docker build`/`docker run` calls in
+existing workflow steps and `register-and-run.sh` work completely unmodified.
+
+Three Alpine-specific config changes were required to make **nested**
+containers (a container built/run *inside* this already-`--privileged`
+runner container) work at all:
+
+1. **`/etc/containers/storage.conf`: `driver = "vfs"`** instead of the
+   default `overlay` — identical rationale to the `vfs` storage driver note
+   above for `dockerd`: overlay-on-overlay is unsupported for nested
+   Docker/Podman-in-Docker.
+2. **`/etc/containers/containers.conf`: `cgroup_manager = "cgroupfs"`**
+   instead of the default `systemd` — Alpine has no systemd, so the default
+   silently breaks cgroup delegation for nested containers
+   (`crun: the requested cgroup controller 'pids' is not available`).
+3. **Rootless subuid/subgid mapping for the `runner` user**
+   (`echo "runner:100000:65536" >> /etc/subuid` /`/etc/subgid`, plus the
+   `shadow-uidmap` package for `newuidmap`/`newgidmap`): `actions/runner`
+   refuses to run as root, so workflow steps — and any `docker`/`podman`
+   command they issue — always run as the non-root `runner` user. Podman
+   auto-detects this and switches to its rootless code path, which requires
+   a subordinate UID/GID range or fails with
+   `no subuid ranges found for user "runner" in /etc/subuid`.
+
+A one-time, harmless warning (`Failed to add conmon to cgroupfs sandbox
+cgroup...`) is expected on the very first Podman container ever started in a
+given container instance — Podman lazily creates its `/libpod_parent` cgroup
+on first use. `entrypoint-podman.sh` primes this once at startup (as the
+`runner` user, matching the rootless code path workflow steps actually use)
+so it never surfaces during a real job.
+
+Verified end-to-end: registered as a real ephemeral runner, ran
+`actions/checkout@v4`, a shell step, and a nested `docker build` (via the
+podman shim, rootless) — all passed.
+
+Trade-off: an even newer/less battle-tested combination than the
+Docker-Alpine variant (source-built musl runner *and* Podman replacing
+Docker), with three non-obvious config tweaks required purely to make
+*nested* containers work — worth validating carefully against your own
+workflow's actual `docker`/`buildx` usage (e.g. multi-platform builds via
+`docker buildx build --platform ...` are not covered by Podman's built-in
+build, which uses `buildah` under the hood) before adopting.
 
 ## Docker-in-Docker security note
 

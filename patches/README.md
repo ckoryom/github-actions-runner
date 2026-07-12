@@ -58,3 +58,14 @@ turned out to be unnecessary weight (~918MB -> ~757MB):
   with `--build-arg INCLUDE_NODE20=true` if you need the legacy binary
   present for `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` during the
   transition window.
+
+## Podman variant (`Dockerfile.alpine-podman`)
+
+Reuses this same `actions-runner-musl-support.patch` and builder stage
+unchanged — the runner binary has no dependency on Docker vs Podman. Only
+the final runtime stage differs: the Docker Engine apk packages are swapped
+for `podman` + `podman-docker` (+ `shadow-uidmap`), shrinking the image
+further (~757MB -> ~483MB). See the "Podman variant" section in the main
+`README.md` for the container-engine-specific config required (storage
+driver, cgroup manager, rootless subuid/subgid mapping) and end-to-end
+validation results.
