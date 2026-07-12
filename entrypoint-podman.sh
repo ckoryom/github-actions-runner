@@ -50,9 +50,14 @@ esac
 # subsequent invocation succeeds. Running one throwaway container here means
 # real workflow steps never hit this — it's fully absorbed at startup, before
 # the runner starts listening for jobs.
+#
+# Workflow steps (and register-and-run.sh) always run as the non-root
+# `runner` user, which makes Podman use its rootless code path (separate
+# user namespace/cgroup delegation from root's). So prime as `runner`, not
+# root, to actually absorb the warning where it would otherwise occur.
 if [[ "${DISABLE_PODMAN:-false}" != "true" ]]; then
     log "Priming Podman cgroup setup (one-time, absorbs a harmless first-run warning)..."
-    podman run --rm alpine:3.20 true >/var/log/podman-prime.log 2>&1 || true
+    runuser -u runner -- podman run --rm alpine:3.20 true >/var/log/podman-prime.log 2>&1 || true
 else
     log "DISABLE_PODMAN=true; skipping Podman priming step."
 fi

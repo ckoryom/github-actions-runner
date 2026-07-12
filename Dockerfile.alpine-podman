@@ -131,6 +131,16 @@ RUN addgroup docker 2>/dev/null || true \
     && addgroup runner docker \
     && echo "runner ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# Podman auto-detects rootless mode whenever it's invoked by a non-root user
+# (true here: actions/runner refuses to run as root, so job steps — and any
+# `docker`/`podman` command they issue — execute as `runner`). Rootless
+# Podman requires a subordinate UID/GID range for that user to build its user
+# namespace; without this it fails with "no subuid ranges found for user
+# ... in /etc/subuid". `shadow-uidmap` (installed above) provides the
+# newuidmap/newgidmap helpers rootless mode needs to apply this range.
+RUN echo "runner:100000:65536" >> /etc/subuid \
+    && echo "runner:100000:65536" >> /etc/subgid
+
 # --- Copy the musl-built actions/runner layout from the builder stage ---------
 COPY --from=builder --chown=runner:runner /work/runner-src/_layout /home/runner/actions-runner
 
