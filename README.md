@@ -298,8 +298,12 @@ glibc/gcompat shim required.
 | Image | Base | Size | Notes |
 | --- | --- | --- | --- |
 | `Dockerfile` | Ubuntu 24.04 | ~1.81 GB | Official, fully supported `actions/runner` release binary. |
-| `Dockerfile.alpine` | Alpine 3.20 | ~918 MB (**~49% smaller**) | Source-built musl runner (this repo's patch); experimental. |
+| `Dockerfile.alpine` | Alpine 3.20 | ~757 MB (**~58% smaller**) | Source-built musl runner (this repo's patch); experimental. Drops the deprecated `node20` bundle and the unused `gnupg` package (see below). |
 | *(bonus, not shipped)* | Chainguard Wolfi | ~1.12 GB | glibc-based, stock official release binary, no patching needed — a smaller-than-Ubuntu fallback if the Alpine/musl approach is ever reverted. |
+
+`Dockerfile.alpine` was further trimmed from an initial ~918 MB:
+- **`gnupg` removed (~unused, several MB with its dependency tree):** it was only ever needed on Ubuntu to import Docker's apt repo signing key; this image installs Docker via `apk`, so gnupg had no purpose here.
+- **Bundled `node20` dropped by default (~100 MB, musl-static binary):** GitHub Actions already forces JS actions to run on Node 24 by default as of June 2026 (confirmed by this image's own end-to-end test logs), and Node 20 is fully removed from Actions in September 2026. Pass `--build-arg INCLUDE_NODE20=true` to keep it if you still rely on `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` during the transition window.
 
 Trade-off: the Alpine image requires building `actions/runner` from source
 against a project-maintained patch, which is a new build/maintenance burden
