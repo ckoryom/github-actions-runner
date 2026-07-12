@@ -14,7 +14,7 @@
 ARG UBUNTU_VERSION=24.04
 ARG RUNNER_VERSION=2.335.1
 
-FROM ubuntu:${UBUNTU_VERSION}
+FROM ubuntu:${UBUNTU_VERSION}@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
 
 ARG RUNNER_VERSION
 ARG TARGETARCH
@@ -30,24 +30,28 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=C.UTF-8
 
 # --- Base OS deps -------------------------------------------------------------
+# NOTE: versions are pinned to the candidates available in the ubuntu:24.04
+# image at the time of writing (see FROM digest above). If apt-get fails to
+# find a pinned version after a base image bump, re-resolve versions with
+# `apt-cache policy <pkg>` against the new digest and update the pins below.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        bash \
-        curl \
-        jq \
-        git \
-        openssh-client \
-        openssl \
-        ca-certificates \
-        tar \
-        gzip \
-        sudo \
-        gnupg \
-        lsb-release \
-        libicu-dev \
-        libatomic1 \
-        libstdc++6 \
-        locales \
+        bash=5.2.21-2ubuntu4 \
+        curl=8.5.0-2ubuntu10.11 \
+        jq=1.7.1-3ubuntu0.24.04.2 \
+        git=1:2.43.0-1ubuntu7.3 \
+        openssh-client=1:9.6p1-3ubuntu13.16 \
+        openssl=3.0.13-0ubuntu3.11 \
+        ca-certificates=20260601~24.04.1 \
+        tar=1.35+dfsg-3ubuntu0.2 \
+        gzip=1.12-1ubuntu3.2 \
+        sudo=1.9.15p5-3ubuntu5.24.04.2 \
+        gnupg=2.4.4-2ubuntu17.4 \
+        lsb-release=12.0-2 \
+        libicu-dev=74.2-1ubuntu3.1 \
+        libatomic1=14.2.0-4ubuntu2~24.04.1 \
+        libstdc++6=14.2.0-4ubuntu2~24.04.1 \
+        locales=2.39-0ubuntu8.7 \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -62,10 +66,10 @@ RUN install -m 0755 -d /etc/apt/keyrings \
         > /etc/apt/sources.list.d/docker.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        docker-ce \
-        docker-ce-cli \
-        containerd.io \
-        docker-buildx-plugin \
+        docker-ce=5:29.6.1-1~ubuntu.24.04~noble \
+        docker-ce-cli=5:29.6.1-1~ubuntu.24.04~noble \
+        containerd.io=2.2.6-1~ubuntu.24.04~noble \
+        docker-buildx-plugin=0.35.0-1~ubuntu.24.04~noble \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Non-root runner user ------------------------------------------------------
