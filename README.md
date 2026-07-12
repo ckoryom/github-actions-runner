@@ -6,17 +6,12 @@
 runner. Authenticate the simple way with a PAT, or the more secure way with
 a GitHub App — either way, no one ever babysits an expiring token again.**
 
-[![Build and Publish](https://github.com/OWNER/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/build-and-publish.yml)
-[![CI](https://github.com/OWNER/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/OWNER/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWNER/github-actions-runner/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/OWNER/github-actions-runner/badge)](https://securityscorecards.dev/viewer/?uri=github.com/OWNER/github-actions-runner)
+[![Build and Publish](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml)
+[![CI](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ckoryom/github-actions-runner/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ckoryom/github-actions-runner)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GHCR](https://img.shields.io/badge/ghcr.io-OWNER%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/OWNER/github-actions-runner/pkgs/container/github-actions-runner)
-[![Platforms](https://img.shields.io/badge/platforms-linux%2Famd64%20%7C%20linux%2Farm64-informational)](#supported-architectures)
-[![Base: Ubuntu 24.04 LTS](https://img.shields.io/badge/base-Ubuntu%2024.04%20LTS-E95420?logo=ubuntu&logoColor=white)](Dockerfile)
-[![Docker-in-Docker](https://img.shields.io/badge/docker--in--docker-enabled-2496ED?logo=docker&logoColor=white)](#authentication-options)
-[![Ephemeral](https://img.shields.io/badge/lifecycle-ephemeral-success)](#how-registration--cleanup-works)
-[![Auth: PAT or GitHub App](https://img.shields.io/badge/auth-PAT%20or%20GitHub%20App-181717?logo=github)](#authentication-options)
+[![GHCR](https://img.shields.io/badge/ghcr.io-ckoryom%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/ckoryom/github-actions-runner/pkgs/container/github-actions-runner)
 
 </div>
 
@@ -264,7 +259,7 @@ right image for your host:
 
 ## Image tags
 
-Every publish to `ghcr.io/OWNER/github-actions-runner` produces several tags
+Every publish to `ghcr.io/ckoryom/github-actions-runner` produces several tags
 at once, so you can pin to whatever level of stability you need:
 
 | Tag | Example | Meaning |
