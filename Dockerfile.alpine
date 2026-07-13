@@ -120,6 +120,63 @@ RUN addgroup docker 2>/dev/null || true \
     && addgroup runner docker \
     && echo "runner ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# --- Pre-seed the tool cache with musl-native Node.js builds ------------------
+# `actions/setup-node` normally downloads the *official* nodejs.org release,
+# which is a glibc build — it fails to exec on this musl image (the same
+# class of unresolved glibc/musl gap documented above for the runner's own
+# binaries; `gcompat` doesn't help either, it's missing symbols like
+# `fcntl64` that Node's official build needs). The actual, working fix is to
+# make `setup-node` skip its download entirely: `@actions/tool-cache` (used
+# by setup-node) checks `$RUNNER_TOOL_CACHE/node/<version>/<arch>` (plus a
+# sibling `<arch>.complete` marker file) *before* downloading, and uses
+# whatever it finds there if present. We populate that cache at build time
+# with genuine musl-linked Node builds from unofficial-builds.nodejs.org
+# (upstream Node.js does not publish musl binaries directly), for both the
+# Node 20 and Node 24 LTS lines, so `setup-node@vX` with either
+# `node-version: 20`/`24` resolves from cache instead of downloading.
+ARG NODE20_LTS_VERSION=20.20.2
+ARG NODE24_LTS_VERSION=24.18.0
+ENV RUNNER_TOOL_CACHE=/opt/hostedtoolcache
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) NODE_ARCH="x64" ;; \
+        arm64) NODE_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    for NODE_VERSION in "${NODE20_LTS_VERSION}" "${NODE24_LTS_VERSION}"; do \
+        DEST="${RUNNER_TOOL_CACHE}/node/${NODE_VERSION}/${NODE_ARCH}"; \
+        mkdir -p "${DEST}"; \
+        curl -fsSL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}-musl.tar.gz" \
+            -o /tmp/node.tar.gz; \
+        tar -xzf /tmp/node.tar.gz -C "${DEST}" --strip-components=1; \
+        rm -f /tmp/node.tar.gz; \
+        touch "${DEST}.complete"; \
+    done; \
+    chown -R runner:runner "${RUNNER_TOOL_CACHE}"
+
+# Some third-party actions (e.g. `pnpm/action-setup`, when `standalone: false`)
+# spawn a *system* `npm`/`node` directly off PATH, independent of and often
+# *before* `actions/setup-node` runs in the job (self-installing pnpm via
+# `npm install -g pnpm` is a common pattern). GitHub-hosted runners get away
+# with this because Node.js/npm ships pre-installed on the VM image; this
+# custom image doesn't carry a system Node by default, so those actions fail
+# with `spawn npm ENOENT` if they execute ahead of setup-node. We expose the
+# Node 24 LTS build we already cache above on system PATH via a stable
+# `/usr/local/node-current` symlink — putting the whole `bin/` dir on PATH
+# (not just symlinking `node`/`npm` individually) also covers binaries
+# `npm install -g` drops into that same bin dir (e.g. `pnpm` itself, once
+# self-installed). `setup-node` is unaffected and still resolves from — and
+# can still switch to a different cached version via — the tool cache
+# pre-seeded above.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) NODE_ARCH="x64" ;; \
+        arm64) NODE_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    ln -s "${RUNNER_TOOL_CACHE}/node/${NODE24_LTS_VERSION}/${NODE_ARCH}" /usr/local/node-current
+ENV PATH="/usr/local/node-current/bin:${PATH}"
+
 # --- Copy the musl-built actions/runner layout from the builder stage ---------
 COPY --from=builder --chown=runner:runner /work/runner-src/_layout /home/runner/actions-runner
 
