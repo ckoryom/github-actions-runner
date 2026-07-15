@@ -10,13 +10,13 @@ here's how to get productive quickly.
 3. Validate locally before opening a PR:
    ```bash
    # Lint the Dockerfile
-   docker run --rm -i hadolint/hadolint < Dockerfile
+   docker run --rm -i hadolint/hadolint < Dockerfile.alpine-podman
 
    # Lint the shell scripts
-   docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable entrypoint.sh scripts/*.sh
+   docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable entrypoint-podman.sh scripts/*.sh
 
    # Build for your local architecture
-   docker build -t github-actions-runner:dev .
+   docker build -f Dockerfile.alpine-podman -t github-actions-runner:dev .
 
    # Sanity-check the runner binary actually starts on this base image
    docker run --rm --user runner --entrypoint bash github-actions-runner:dev \
@@ -28,7 +28,7 @@ here's how to get productive quickly.
 ## Bumping the bundled `actions/runner` version
 
 The runner version is pinned via the `RUNNER_VERSION` build arg at the top of
-the `Dockerfile`. Dependabot tracks the base image and our own GitHub Actions
+`Dockerfile.alpine-podman`. Dependabot tracks the base image and our own GitHub Actions
 automatically, but it does **not** track this custom build-arg pin — please
 bump it manually in a PR when a new
 [actions/runner release](https://github.com/actions/runner/releases) ships,

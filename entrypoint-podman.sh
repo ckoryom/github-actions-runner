@@ -3,10 +3,9 @@
 # (Dockerfile.alpine-podman): validates configuration, primes Podman's
 # nested-container cgroup setup, then hands off to register-and-run.sh.
 #
-# Unlike entrypoint.sh (Docker/DinD), there is no background daemon to start
-# or wait on: Podman is daemonless, so `docker`/`podman` commands run and
-# exit as regular child processes of whatever invokes them (a workflow step,
-# or register-and-run.sh itself).
+# There is no background daemon to start or wait on: Podman is daemonless, so
+# `docker`/`podman` commands run and exit as regular child processes of
+# whatever invokes them (a workflow step, or register-and-run.sh itself).
 set -euo pipefail
 
 log() { echo "[entrypoint] $*"; }
@@ -57,16 +56,16 @@ esac
 # root, to actually absorb the warning where it would otherwise occur.
 if [[ "${DISABLE_PODMAN:-false}" != "true" ]]; then
     log "Priming Podman cgroup setup (one-time, absorbs a harmless first-run warning)..."
-    runuser -u runner -- podman run --rm alpine:3.20 true >/var/log/podman-prime.log 2>&1 || true
+    runuser -u runner -- podman run --rm alpine:3.23 true >/var/log/podman-prime.log 2>&1 || true
 else
     log "DISABLE_PODMAN=true; skipping Podman priming step."
 fi
 
 # --- Hand off to the registration/run script -----------------------------------
 # The actions/runner binaries (config.sh/run.sh) refuse to run as root, so we
-# drop privileges to the non-root `runner` user for this step, same as
-# entrypoint.sh. No EXIT trap/cleanup is needed here (no background daemon to
-# stop), so we can `exec` straight into register-and-run.sh via runuser.
+# drop privileges to the non-root `runner` user for this step. No EXIT
+# trap/cleanup is needed here (no background daemon to stop), so we can `exec`
+# straight into register-and-run.sh via runuser.
 export HOME=/home/runner
 export USER=runner
 export LOGNAME=runner

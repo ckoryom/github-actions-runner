@@ -20,24 +20,23 @@ upgrade regularly via the Dependabot PRs this repo generates.
 This project makes a few deliberate trade-offs. We'd rather be transparent
 about them than pretend they don't exist:
 
-### 1. `--privileged` is required for Docker-in-Docker
+### 1. `--privileged` is still required
 
-The default configuration runs an isolated Docker daemon *inside* the runner
-container so workflow jobs can `docker build`/`docker run`. Docker's own
-docs are blunt about this: `--privileged` grants the container
-near-root-equivalent access to the host kernel. This is **not** a
-sandboxed, defense-in-depth boundary — treat any workflow that can reach
-this runner as having host-level access.
+This runner uses Podman and Buildah inside the container rather than a
+long-lived inner `dockerd`, which reduces daemon overhead and avoids sharing
+the host Docker socket. It does **not** eliminate the trust boundary issue:
+for nested container workloads, the runner still needs `--privileged`, which
+grants near-root-equivalent access to the host kernel. Treat any workflow
+that can reach this runner as having host-level access.
 
 Mitigations / alternatives:
 - Only point trusted repositories/workflows at this runner. Never use it as
   a runner for public-repo pull requests from forks.
-- Set `DISABLE_DIND=true` and instead mount the host's Docker socket
-  (`-v /var/run/docker.sock:/var/run/docker.sock`) if you already trust the
-  host daemon equally — this avoids `--privileged` but shares the host's
-  Docker daemon directly (also a strong trust boundary, just a different one).
 - For stronger isolation, consider running this image inside a dedicated,
   disposable VM per job rather than on shared infrastructure.
+- If you need stricter separation than `--privileged` allows, use GitHub-hosted
+  runners or a dedicated VM-per-job platform instead of sharing a long-lived
+  self-hosted host.
 
 ### 2. Two supported auth methods — choose your trade-off
 
@@ -81,13 +80,13 @@ Published images are:
   Sigstore/OIDC — verify with:
   ```bash
   cosign verify \
-    --certificate-identity-regexp "https://github.com/OWNER/github-actions-runner/.*" \
+    --certificate-identity-regexp "https://github.com/ckoryom/github-actions-runner/.*" \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-    ghcr.io/OWNER/github-actions-runner:latest
+    ghcr.io/ckoryom/github-actions-runner:latest
   ```
 - Published with an SBOM and build provenance attestation
   ([SLSA](https://slsa.dev/)-style), viewable with
-  `gh attestation verify oci://ghcr.io/OWNER/github-actions-runner:latest -o OWNER`.
+  `gh attestation verify oci://ghcr.io/ckoryom/github-actions-runner:latest -o ckoryom`.
 
 ## Reporting other concerns
 

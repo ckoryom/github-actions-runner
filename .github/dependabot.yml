@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Docker base image + any FROM references in the Dockerfile
+  # Base image + any FROM references in the Podman runner Dockerfile
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

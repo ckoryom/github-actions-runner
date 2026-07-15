@@ -17,7 +17,7 @@ jobs:
       - name: Run hadolint
         uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
         with:
-          dockerfile: Dockerfile
+          dockerfile: Dockerfile.alpine-podman
           failure-threshold: warning
 
   shellcheck:
@@ -31,8 +31,8 @@ jobs:
           scandir: "."
           severity: warning
 
-  build-check:
-    name: Build image (amd64, no push)
+  build-check-alpine-podman:
+    name: Build Podman image (amd64, no push)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -40,15 +40,24 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - name: Build image
+      - name: Build Podman image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
+          file: Dockerfile.alpine-podman
           platforms: linux/amd64
           push: false
           load: true
-          tags: github-actions-runner:ci
-      - name: Smoke test (config.sh --help)
+          tags: github-actions-runner:ci-alpine-podman
+      - name: Smoke test (runner + Node 24+/pnpm prerequisites)
         run: |
-          docker run --rm --user runner --entrypoint bash github-actions-runner:ci \
-            -c "cd /home/runner/actions-runner && ./config.sh --help && ./run.sh --version"
+          docker run --rm --user runner --entrypoint bash github-actions-runner:ci-alpine-podman \
+            -c "node -e 'const major = Number(process.versions.node.split(\".\")[0]); if (major < 24) process.exit(1)' \
+              && npm --version \
+              && rm -rf /tmp/pnpm-smoke && mkdir -p /tmp/pnpm-smoke && cd /tmp/pnpm-smoke \
+              && npm install --silent pnpm@10.20.0 \
+              && ./node_modules/.bin/pnpm --version \
+              && ./node_modules/.bin/pnpm store path --silent >/dev/null \
+              && cd /home/runner/actions-runner \
+              && ./config.sh --help \
+              && ./run.sh --version"

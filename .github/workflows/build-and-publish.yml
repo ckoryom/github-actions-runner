@@ -16,7 +16,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ckoryom/github-actions-runner
 
 jobs:
   build-and-publish:
@@ -50,7 +50,7 @@ jobs:
           if [ -n "${{ github.event.inputs.runner_version }}" ]; then
             version="${{ github.event.inputs.runner_version }}"
           else
-            version="$(grep -m1 '^ARG RUNNER_VERSION=' Dockerfile | cut -d= -f2)"
+            version="$(grep -m1 '^ARG RUNNER_VERSION=' Dockerfile.alpine-podman | cut -d= -f2)"
           fi
           echo "value=${version}" >> "$GITHUB_OUTPUT"
 
@@ -63,14 +63,19 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=runner-${{ steps.runner_version.outputs.value }}
-            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=github-actions-runner
+            org.opencontainers.image.description=Community-maintained Alpine + Podman self-hosted GitHub Actions runner with fresh registration tokens on every start.
+            org.opencontainers.image.url=https://github.com/ckoryom/github-actions-runner
+            org.opencontainers.image.documentation=https://github.com/ckoryom/github-actions-runner#readme
+            org.opencontainers.image.source=https://github.com/ckoryom/github-actions-runner
 
       - name: Build and push
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
+          file: Dockerfile.alpine-podman
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

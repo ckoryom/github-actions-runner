@@ -1,392 +1,318 @@
 <div align="center">
 
-# 🐳 github-actions-runner
+# 🚀 github-actions-runner
 
-**An ephemeral, self-cleaning, Docker-in-Docker self-hosted GitHub Actions
-runner. Authenticate the simple way with a PAT, or the more secure way with
-a GitHub App — either way, no one ever babysits an expiring token again.**
+**A community-maintained, Alpine + Podman self-hosted GitHub Actions runner.**
+**Small, ephemeral, GitHub App-friendly, and built for teams that want Podman instead of Docker-in-Docker.**
 
 [![Build and Publish](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml)
 [![CI](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ckoryom/github-actions-runner/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ckoryom/github-actions-runner)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GHCR](https://img.shields.io/badge/ghcr.io-ckoryom%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/ckoryom/github-actions-runner/pkgs/container/github-actions-runner)
+[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fckoryom%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/ckoryom/github-actions-runner/pkgs/container/github-actions-runner)
+[![Alpine](https://img.shields.io/badge/Base-Alpine%203.23-0D597F?logo=alpinelinux)](https://alpinelinux.org/)
+[![Podman](https://img.shields.io/badge/Engine-Podman-892CA0?logo=podman)](https://podman.io/)
+[![Community](https://img.shields.io/badge/Contributions-Welcome-brightgreen)](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-A single Docker image that turns into a fully-configured, one-shot GitHub
-Actions self-hosted runner the moment you `docker run` it — for a
-**repository**, an **organization**, or an **enterprise** — and cleanly
-removes itself from GitHub when the job finishes or the container stops.
+## ✨ What this project is
 
-## Why this exists
+This repository ships **one** runner image:
 
-Manually-generated runner registration tokens expire in about an hour. Bake
-one into a container and restart it later (host reboot, autoscaler,
-Kubernetes rescheduling…) and it silently fails to register — or worse, you
-end up with a stale "Offline" runner nobody notices until a workflow hangs.
+**`ghcr.io/ckoryom/github-actions-runner`**
 
-This image sidesteps that entirely: it mints a brand-new runner registration
-token **on every start and every stop**, and never stores or reuses one
-across restarts. You authenticate once (either a PAT or a GitHub App); the
-container never asks you to touch a runner token yourself.
+It is:
 
-## Features
+- 🏔️ **Alpine-based**
+- 🦭 **Podman-powered**
+- 🔁 **ephemeral by default**
+- 🔐 **GitHub App-ready**
+- 📦 **published to GHCR with semver tags**
 
-- 🔁 **Ephemeral by default** — runs exactly one job, then deregisters and
-  exits. No "offline" zombie runners.
-- 🔐 **Two auth options** — a simple Personal Access Token, or a scoped
-  GitHub App for tighter security. See [Authentication options](#authentication-options).
-- 🏢 **Repo, org, and enterprise scopes** — one image, pick your scope via
-  `RUNNER_SCOPE`.
-- 🐋 **Docker-in-Docker built in** — jobs can `docker build`/`docker run`
-  out of the box.
-- 🏗️ **Multi-arch**: `linux/amd64` and `linux/arm64` published together.
-- 🛡️ **Supply-chain hardened**: Trivy-scanned, cosign-signed, SBOM +
-  provenance attested on every publish. See [SECURITY.md](SECURITY.md).
+The runner registers itself on startup, runs **exactly one job**, and removes itself when the job finishes or the container stops.
 
-## What sets this apart
+---
 
-Plenty of self-hosted runner images exist. A few things this one does
-differently, all out of the box, with no extra setup:
+## 🥊 Why this is different from the competition
 
-- **Zero standing runner tokens.** Registration tokens are minted fresh on
-  every start *and* every stop, then discarded — never baked into the image,
-  never reused across restarts, and never left for you to manage by hand.
-- **GitHub App auth as a first-class citizen**, not an afterthought bolted
-  onto a PAT-only design — scoped, key-rotatable, and documented end-to-end
-  in [docs/github-app-setup.md](docs/github-app-setup.md).
-- **Supply-chain verification baked into the release pipeline**: every image
-  is Trivy-scanned, cosign-signed, and shipped with an SBOM and build
-  provenance attestation — not an optional add-on you have to wire up
-  yourself.
-- **One image, three scopes.** Repository, organization, and enterprise
-  registration are all supported from the same image via `RUNNER_SCOPE`,
-  with no separate builds to maintain.
+Most self-hosted runner images are built around **Ubuntu + Docker-in-Docker**. This one is intentionally different:
 
-## Quick start
+| Area | This project | Typical runner images |
+| --- | --- | --- |
+| Base image | **Alpine 3.23** | Usually Ubuntu/Debian |
+| Container engine inside jobs | **Podman + Buildah** | Usually Docker Engine |
+| Runtime model | **Daemonless engine** | Usually background `dockerd` |
+| Runner lifecycle | **Ephemeral / one-job** | Often long-lived |
+| Footprint | **~154 MiB local amd64 build** | Usually much heavier |
+| Auth story | **Fresh tokens every start/stop** | Often PAT-only or manual token flows |
 
-Pick **one** of the two authentication options below, then run the container.
+### ✅ Why Podman is a better fit here
 
-### Option A — Personal Access Token (simplest)
+- 🧠 **No long-lived inner Docker daemon** — Podman is daemonless, so there is less moving infrastructure inside the runner container.
+- 📉 **Smaller dependency stack** — dropping the full Docker Engine stack saves a lot of weight.
+- 🔒 **Cleaner security posture** — this image avoids mounting the host Docker socket and avoids a nested `dockerd` service. That does **not** make it a sandbox, but it is a simpler and smaller attack surface than classic Docker-in-Docker.
+- 🧰 **Better alignment with modern Linux container tooling** — Podman + Buildah are a strong fit for Red Hat / Fedora / OpenShift-style workflows.
 
-1. Create a token: **Settings → Developer settings → Personal access tokens**.
-   - Fine-grained token: grant **Administration: Read and write** on the
-     target repository (or the equivalent organization "Self-hosted runners"
-     permission for org/enterprise scope).
-   - Classic token: the `repo` scope (or `admin:org` for org/enterprise scope).
-2. Run it:
+> **Important:** this runner still needs `--privileged` for nested container workloads. It is safer *than classic DinD in design*, but it is **not** a secure boundary for untrusted code. See [SECURITY.md](SECURITY.md).
 
-```bash
-docker run -d --privileged \
-  --name docker-runner-1 \
-  --restart unless-stopped \
-  -e GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxx \
-  -e RUNNER_SCOPE=repo \
-  -e REPO_URL=https://github.com/OWNER/REPO \
-  -e RUNNER_NAME=docker-runner-1 \
-  ghcr.io/OWNER/github-actions-runner:latest
+---
+
+## 📦 Published image and tags
+
+The publish workflow pushes to:
+
+```text
+ghcr.io/ckoryom/github-actions-runner
 ```
 
-### Option B — GitHub App (recommended for production)
+Recommended tags:
 
-More setup, but scoped, key-rotatable, and not tied to a personal account —
-see [Authentication options](#authentication-options) below for the full
-step-by-step, or the deep dive in [docs/github-app-setup.md](docs/github-app-setup.md).
+- `latest` — current default branch image
+- `X.Y.Z` — exact release tag
+- `X.Y` — rolling minor line
+
+Examples:
+
+```text
+ghcr.io/ckoryom/github-actions-runner:latest
+ghcr.io/ckoryom/github-actions-runner:1.4.0
+ghcr.io/ckoryom/github-actions-runner:1.4
+```
+
+> Git release refs can still be `vX.Y.Z`; the published container tags are normalized to `X.Y.Z`.
+
+The image is also published with OCI metadata so GHCR shows a clean package description, source link, and documentation link back to this repo.
+
+---
+
+## ⚡ Quick start
+
+### 1. Create credentials
+
+Use **one** of these:
+
+- **GitHub App** — recommended
+- **Personal Access Token** — simpler, but broader and less durable
+
+For the GitHub App flow, see [docs/github-app-setup.md](docs/github-app-setup.md).
+
+### 2. Run the runner
+
+#### Recommended: GitHub App
 
 ```bash
-docker run -d --privileged \
-  --name docker-runner-1 \
+podman run -d --privileged \
+  --name gha-runner \
   --restart unless-stopped \
   -e GITHUB_APP_ID=123456 \
   -e GITHUB_APP_PRIVATE_KEY="$(cat my-app.private-key.pem)" \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
-  -e RUNNER_NAME=docker-runner-1 \
-  ghcr.io/OWNER/github-actions-runner:latest
+  -e RUNNER_NAME=gha-runner \
+  ghcr.io/ckoryom/github-actions-runner:latest
 ```
 
-> **Detached mode:** `-d` runs the container in the background and returns
-> your terminal immediately; `--restart unless-stopped` re-launches it (and
-> re-registers, since it's ephemeral) automatically after a host reboot or
-> crash. Since it's `--ephemeral`, the container exits on its own after each
-> job — use an orchestrator (`docker compose`, a systemd unit, or a
-> supervisor) if you want it to keep re-spawning for the next job; see
-> `docker-compose.example.yml` below for a ready-made way to do that.
->
-> Useful follow-up commands:
-> ```bash
-> docker logs -f docker-runner-1   # tail runner output
-> docker ps --filter name=docker-runner-1   # check it's running
-> docker stop docker-runner-1      # graceful shutdown (deregisters itself)
-> ```
-
-Or use [`docker-compose.example.yml`](docker-compose.example.yml) to run (and
-scale) multiple ephemeral runners at once:
+#### Simple: PAT
 
 ```bash
-cp docker-compose.example.yml docker-compose.yml
-# fill in your values, then:
-docker compose up --scale runner=3
+podman run -d --privileged \
+  --name gha-runner \
+  --restart unless-stopped \
+  -e GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxx \
+  -e RUNNER_SCOPE=repo \
+  -e REPO_URL=https://github.com/OWNER/REPO \
+  -e RUNNER_NAME=gha-runner \
+  ghcr.io/ckoryom/github-actions-runner:latest
 ```
 
-## Authentication options
+### 3. Useful commands
 
-This image supports **exactly one** of the two auth modes below per
-container. If both are set, `GITHUB_PAT` wins.
+```bash
+podman logs -f gha-runner
+podman ps --filter name=gha-runner
+podman stop gha-runner
+```
 
-### Personal Access Token (PAT) — simplest
+---
 
-Just generate a token and pass it in as `GITHUB_PAT`. No extra setup, no App
-to create. Trade-offs to be aware of:
-
-- **Fine-grained tokens** expire after at most 1 year — you'll need to
-  rotate and update your deployment before then.
-- **Classic tokens** with `repo`/`admin:org` scope can do a lot more than
-  just manage runners (e.g., read/write code, admin the org) — a leak is
-  more damaging than a leaked GitHub App key scoped to just runner management.
-- The token is tied to **your personal GitHub account** — if you leave the
-  org or lose access, runners using your PAT stop working.
-
-This is a great option for personal projects, quick experiments, or trusted
-internal environments where the simplicity is worth the trade-off.
-
-Required env vars: `GITHUB_PAT`, `RUNNER_SCOPE`, and the matching
-`REPO_URL` / `ORG_NAME` / `ENTERPRISE_NAME`.
-
-### GitHub App — recommended for production / public use
-
-A GitHub App's private key can be scoped to *just* "Self-hosted runners"
-permissions, isn't tied to a human account, and can be rotated or revoked
-independently. The entrypoint mints a fresh installation token *and* a fresh
-runner registration token from it on every start and stop — nothing is ever
-cached or reused.
-
-**Step-by-step: creating the GitHub App**
-
-1. Go to **Settings → Developer settings → GitHub Apps → New GitHub App**
-   (for an org: **Org Settings → Developer settings → GitHub Apps**).
-2. Give it any name and a placeholder homepage URL.
-3. Under **Webhook**, uncheck "Active" — this App doesn't need webhooks.
-4. Under **Permissions**, grant only what your scope needs:
-
-   | `RUNNER_SCOPE` | Permission to grant |
-   |---|---|
-   | `repo` | Repository permissions → **Administration**: Read and write |
-   | `org` | Organization permissions → **Self-hosted runners**: Read and write |
-   | `enterprise` | **Self-hosted runners** permission via the enterprise's own App settings |
-
-5. Choose **"Only on this account"**, then click **Create GitHub App**.
-6. On the App's page, scroll to **Private keys** → **Generate a private
-   key** — this downloads a `.pem` file. Note the **App ID** at the top of
-   the same page.
-7. Click **Install App** (left sidebar) and install it on the
-   repo/org/enterprise you want runners for. Note the **Installation ID**
-   from the URL (`.../installations/<ID>`) — or leave it unset if the App
-   has only one installation; it's auto-discovered.
-8. Run the container with `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (or
-   `GITHUB_APP_PRIVATE_KEY_PATH` for a mounted file), and optionally
-   `GITHUB_APP_INSTALLATION_ID`.
-
-For more detail (screenshots-friendly walkthrough, key-handling advice), see
-[docs/github-app-setup.md](docs/github-app-setup.md).
-
-**Why this avoids the "expiring token" problem**: a manually-generated
-runner registration token expires in ~1 hour — hardcode one and restart the
-container later and it silently fails. With a GitHub App, the entrypoint
-never stores a registration token; it re-mints one from your (non-expiring)
-private key every single time the container starts or stops.
-
-## Environment variables
+## 🧾 Supported environment variables
 
 | Variable | Required | Description |
-|---|---|---|
-| `GITHUB_PAT` | ✅ (Option A) — mutually exclusive with the App vars below | Personal access token used directly to request runner registration tokens |
-| `GITHUB_APP_ID` | ✅ (Option B) | Your GitHub App's ID |
-| `GITHUB_APP_PRIVATE_KEY` | ✅ (Option B, or the `_PATH` variant) | PEM contents of the App's private key |
-| `GITHUB_APP_PRIVATE_KEY_PATH` | ✅ (Option B, or the above) | Path to a mounted PEM file, instead of passing raw contents |
-| `GITHUB_APP_INSTALLATION_ID` | optional | Installation ID; auto-discovered if the App has exactly one installation |
-| `RUNNER_SCOPE` | ✅ | `repo` \| `org` \| `enterprise` |
-| `REPO_URL` | if `RUNNER_SCOPE=repo` | e.g. `https://github.com/OWNER/REPO` |
-| `ORG_NAME` | if `RUNNER_SCOPE=org` | Organization login |
-| `ENTERPRISE_NAME` | if `RUNNER_SCOPE=enterprise` | Enterprise slug |
-| `RUNNER_NAME` | optional | Defaults to the container hostname |
+| --- | --- | --- |
+| `GITHUB_PAT` | ✅ for PAT auth | Personal access token |
+| `GITHUB_APP_ID` | ✅ for App auth | GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | ✅ for App auth | PEM contents of the App private key |
+| `GITHUB_APP_PRIVATE_KEY_PATH` | optional | Mounted PEM file path instead of inline contents |
+| `GITHUB_APP_INSTALLATION_ID` | optional | Installation ID, auto-discovered if only one installation exists |
+| `RUNNER_SCOPE` | ✅ | `repo`, `org`, or `enterprise` |
+| `REPO_URL` | repo scope | `https://github.com/OWNER/REPO` |
+| `ORG_NAME` | org scope | GitHub org login |
+| `ENTERPRISE_NAME` | enterprise scope | GitHub enterprise slug |
+| `RUNNER_NAME` | optional | Defaults to container hostname |
 | `RUNNER_LABELS` | optional | Comma-separated extra labels |
 | `RUNNER_GROUP` | optional | Runner group name |
-| `DISABLE_DIND` | optional | Set `true` to skip starting the internal Docker daemon (e.g., if you mount the host socket instead) |
-| `DOCKERD_STORAGE_DRIVER` | optional | Storage driver for the internal `dockerd`. Defaults to `vfs` (see note below); override if your host is verified to support nested `overlay2` |
+| `DISABLE_PODMAN` | optional | Skip the startup Podman priming step |
 
-## How registration & cleanup works
+---
 
+## 🛠️ How to use this runner in workflows
+
+This runner is best for:
+
+- ✅ `podman build`
+- ✅ `podman run`
+- ✅ `buildah bud`
+- ✅ `redhat-actions/buildah-build`
+- ✅ `redhat-actions/push-to-registry`
+- ✅ general Linux build/test/release jobs
+
+### Recommended container build workflow
+
+If you want to build and push container images **on this runner**, prefer the Red Hat actions:
+
+```yaml
+name: Build image with Podman toolchain
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: my-app
+          tags: latest ${{ github.sha }}
+          containerfiles: |
+            ./Dockerfile
+
+      - name: Push image
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 ```
- container start
-       │
-       ▼
- GITHUB_PAT set? ──yes──► use it directly as the bearer token
-       │no
-       ▼
- sign a JWT with the App's private key
-       │
-       ▼
- exchange JWT → installation access token   (GitHub App API)
-       │
-       ▼
- exchange bearer token → runner registration token
-       │                  (repo / org / enterprise endpoint)
-       ▼
- ./config.sh --ephemeral --token <reg-token>
-       │
-       ▼
- ./run.sh --once            ──► runs exactly one job
-       │
-       ▼  (also on SIGTERM/SIGINT/container stop)
- mint a fresh removal token → ./config.sh remove
-       │
-       ▼
- container exits — runner is gone from the GitHub UI
+
+---
+
+## 🚫 What will **not** work the same as Docker runners
+
+This runner is **not** a good fit for workflows that assume a full Docker Buildx environment.
+
+### Expect problems with:
+
+- `docker/setup-buildx-action`
+- `docker/build-push-action`
+- workflows that require Docker BuildKit/buildx plugin behavior
+- workflows that assume Docker daemon APIs rather than Podman/Buildah tooling
+
+### Why
+
+This image intentionally uses **Podman + the `podman-docker` shim**, not Docker Engine + Buildx. The `docker` CLI compatibility layer is good for many common commands, but it is **not** a drop-in replacement for advanced Docker Buildx pipelines.
+
+### What to do instead
+
+- Use **`redhat-actions/buildah-build`**
+- Use **`redhat-actions/push-to-registry`**
+- Or write direct `podman build` / `podman push` / `buildah bud` steps
+
+If your workflow absolutely depends on Docker Buildx, this project is probably the wrong runner image for that job.
+
+---
+
+## 🔐 Authentication model
+
+This image supports:
+
+1. **GitHub App** — recommended for teams and production
+2. **PAT** — simple for experiments and smaller setups
+
+Why GitHub App is great here:
+
+- the credential is not tied to one human
+- permissions can be scoped tightly
+- the runner mints a **fresh registration token every start and stop**
+- no static runner registration token is ever baked into the image
+
+See [docs/github-app-setup.md](docs/github-app-setup.md).
+
+---
+
+## 🧪 How the runner behaves
+
+```text
+container starts
+  -> mints fresh auth token
+  -> mints fresh runner registration token
+  -> registers as ephemeral runner
+  -> runs one job
+  -> deregisters on exit
+  -> container stops
 ```
 
-## Supported architectures
+That means:
 
-Published as a single multi-arch manifest — Docker automatically pulls the
-right image for your host:
+- no stale “offline” runners piling up
+- no manually managed registration tokens
+- one-job blast radius
+
+---
+
+## 🏗️ Architectures
+
+Published as:
 
 - `linux/amd64`
 - `linux/arm64`
 
-## Image tags
+---
 
-Every publish to `ghcr.io/ckoryom/github-actions-runner` produces several tags
-at once, so you can pin to whatever level of stability you need:
+## 🤝 Community project
 
-| Tag | Example | Meaning |
-| --- | --- | --- |
-| `latest` | `latest` | Most recent build from the default branch. |
-| `{{version}}` | `1.4.0` | Full semantic version, from a `vX.Y.Z` git tag. |
-| `{{major}}.{{minor}}` | `1.4` | Rolling minor version — updates with patch releases. |
-| `runner-<version>` | `runner-2.335.1` | The exact baked-in `actions/runner` version, independent of this image's own release cadence — use this if you need to pin to a specific runner build regardless of image version. |
-| short SHA | `sha-abc1234` | The exact commit the image was built from. |
+This is a **community project**, not a huge platform team product. If this runner helps you:
 
-Use semver tags for general use, `runner-<version>` when you need a specific
-`actions/runner` release, and the short SHA for fully reproducible pins.
+- ⭐ star the repo
+- 🐛 open issues when you find bugs
+- 💡 suggest improvements
+- 🔧 send PRs
 
-## Compatibility note
+Contributors are very welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-This image is built on **Ubuntu 24.04 LTS**. The official `actions/runner`
-*release* binary is a glibc/.NET build and fails at `./config.sh` on musl
-libc (`Error relocating ./bin/libcoreclr.so: __isnan: symbol not found`),
-even with the `gcompat` shim installed — a known, unresolved upstream
-limitation ([actions/runner#585](https://github.com/actions/runner/issues/585)).
+---
 
-An experimental **Alpine variant** (`Dockerfile.alpine`) is now available
-that works around this by compiling `actions/runner` from source targeting
-the `linux-musl-x64`/`linux-musl-arm64` .NET Runtime Identifiers instead of
-using the prebuilt glibc release — `.NET` officially supports musl
-self-contained builds (see Microsoft's own `dotnet/runtime:*-alpine`
-images), the stock `actions/runner` build scripts just don't expose that RID
-by default. See `patches/README.md` for exactly what's patched. This has
-been verified end-to-end: registering as an ephemeral runner, running
-`actions/checkout@v4` (a JS action, via the bundled Alpine Node build), a
-shell step, and a nested `docker build` all succeed on Alpine with no
-glibc/gcompat shim required.
+## 🛡️ Security and supply chain
 
-### Image size comparison
+Published images are:
 
-| Image | Base | Container engine | Size | Notes |
-| --- | --- | --- | --- | --- |
-| `Dockerfile` | Ubuntu 24.04 | Docker Engine (apt) | ~1.81 GB | Official, fully supported `actions/runner` release binary. |
-| `Dockerfile.alpine` | Alpine 3.20 | Docker Engine (apk) | ~757 MB (**~58% smaller**) | Source-built musl runner (this repo's patch); experimental. Drops the deprecated `node20` bundle and the unused `gnupg` package (see below). |
-| `Dockerfile.alpine-podman` | Alpine 3.20 | Podman + `podman-docker` shim | ~483 MB (**~73% smaller than Ubuntu, ~36% smaller than the Docker-Alpine variant**) | Same source-built musl runner; replaces the whole Docker Engine stack (docker-engine + containerd + docker-cli + docker-cli-buildx + runc, ~270 MB) with Podman (daemonless, ~89 MB). See "Podman variant" below. |
-| *(bonus, not shipped)* | Chainguard Wolfi | Docker Engine | ~1.12 GB | glibc-based, stock official release binary, no patching needed — a smaller-than-Ubuntu fallback if the Alpine/musl approach is ever reverted. |
+- scanned with **Trivy**
+- signed with **cosign**
+- published with **SBOM + provenance**
 
-`Dockerfile.alpine` was further trimmed from an initial ~918 MB:
-- **`gnupg` removed (~unused, several MB with its dependency tree):** it was only ever needed on Ubuntu to import Docker's apt repo signing key; this image installs Docker via `apk`, so gnupg had no purpose here.
-- **Bundled `node20` dropped by default (~100 MB, musl-static binary):** GitHub Actions already forces JS actions to run on Node 24 by default as of June 2026 (confirmed by this image's own end-to-end test logs), and Node 20 is fully removed from Actions in September 2026. Pass `--build-arg INCLUDE_NODE20=true` to keep it if you still rely on `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` during the transition window.
+More detail: [SECURITY.md](SECURITY.md)
 
-Trade-off: the Alpine image requires building `actions/runner` from source
-against a project-maintained patch, which is a new build/maintenance burden
-(the patch must be re-verified on every `RUNNER_VERSION` bump). Ubuntu
-remains the default/primary image for correctness and long-term
-maintainability; Alpine is offered as a smaller, opt-in alternative.
+---
 
-### Podman variant (`Dockerfile.alpine-podman`)
+## 📚 Repo docs
 
-Built on top of the Alpine/musl runner to test whether replacing Docker with
-[Podman](https://podman.io/) shrinks the image further — it does, by another
-~274 MB (~36%) on top of the Docker-Alpine variant, for ~73% smaller than
-Ubuntu overall. Podman is daemonless (no `dockerd` background process to
-start/wait for) and Alpine's `podman-docker` package installs a `/usr/bin/docker`
-shim that forwards to `podman`, so `docker build`/`docker run` calls in
-existing workflow steps and `register-and-run.sh` work completely unmodified.
+- [GitHub App setup guide](docs/github-app-setup.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-Three Alpine-specific config changes were required to make **nested**
-containers (a container built/run *inside* this already-`--privileged`
-runner container) work at all:
+---
 
-1. **`/etc/containers/storage.conf`: `driver = "vfs"`** instead of the
-   default `overlay` — identical rationale to the `vfs` storage driver note
-   above for `dockerd`: overlay-on-overlay is unsupported for nested
-   Docker/Podman-in-Docker.
-2. **`/etc/containers/containers.conf`: `cgroup_manager = "cgroupfs"`**
-   instead of the default `systemd` — Alpine has no systemd, so the default
-   silently breaks cgroup delegation for nested containers
-   (`crun: the requested cgroup controller 'pids' is not available`).
-3. **Rootless subuid/subgid mapping for the `runner` user**
-   (`echo "runner:100000:65536" >> /etc/subuid` /`/etc/subgid`, plus the
-   `shadow-uidmap` package for `newuidmap`/`newgidmap`): `actions/runner`
-   refuses to run as root, so workflow steps — and any `docker`/`podman`
-   command they issue — always run as the non-root `runner` user. Podman
-   auto-detects this and switches to its rootless code path, which requires
-   a subordinate UID/GID range or fails with
-   `no subuid ranges found for user "runner" in /etc/subuid`.
+## ❤️ Final note
 
-A one-time, harmless warning (`Failed to add conmon to cgroupfs sandbox
-cgroup...`) is expected on the very first Podman container ever started in a
-given container instance — Podman lazily creates its `/libpod_parent` cgroup
-on first use. `entrypoint-podman.sh` primes this once at startup (as the
-`runner` user, matching the rootless code path workflow steps actually use)
-so it never surfaces during a real job.
-
-Verified end-to-end: registered as a real ephemeral runner, ran
-`actions/checkout@v4`, a shell step, and a nested `docker build` (via the
-podman shim, rootless) — all passed.
-
-Trade-off: an even newer/less battle-tested combination than the
-Docker-Alpine variant (source-built musl runner *and* Podman replacing
-Docker), with three non-obvious config tweaks required purely to make
-*nested* containers work — worth validating carefully against your own
-workflow's actual `docker`/`buildx` usage (e.g. multi-platform builds via
-`docker buildx build --platform ...` are not covered by Podman's built-in
-build, which uses `buildah` under the hood) before adopting.
-
-## Docker-in-Docker security note
-
-Running an isolated Docker daemon inside the container requires
-`--privileged`, which grants near-root-equivalent access to the host kernel.
-Please read the [Security Policy](SECURITY.md) before deploying this to
-untrusted workflows (e.g., public-repo fork PRs).
-
-## Docker-in-Docker storage driver note
-
-The internal `dockerd` defaults to the `vfs` storage driver instead of
-`overlay2`. Nested Docker-in-Docker almost always runs on top of a host
-filesystem that is itself `overlay2` (containerd's default snapshotter), and
-stacking `overlay2` on `overlay2` frequently fails at runtime — e.g. build
-steps using `docker/setup-buildx-action` or plain `docker build` can fail
-with errors like `failed to mount ...: fstype: overlay ... invalid
-argument`. `vfs` avoids this entirely and is the standard, widely-documented
-workaround for nested DinD, at the cost of slower, non-copy-on-write layer
-storage. If you've verified your specific host/kernel supports nested
-`overlay2`, you can opt back in with `-e DOCKERD_STORAGE_DRIVER=overlay2`
-for faster builds.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and PRs welcome!
-
-## License
-
-[MIT](LICENSE)
+If you want a **smaller**, **Podman-first**, **ephemeral**, **community-friendly** GitHub Actions runner, this repo is for you.
