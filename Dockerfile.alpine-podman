@@ -35,6 +35,7 @@ ARG RUNNER_VERSION
 ARG TARGETARCH
 ARG INCLUDE_NODE20=false
 
+# hadolint ignore=DL3018
 RUN apk add --no-cache bash git icu-libs curl
 
 WORKDIR /work
@@ -44,16 +45,16 @@ RUN git clone --depth 1 --branch "v${RUNNER_VERSION}" \
     && git config --global --add safe.directory /work/runner-src
 
 COPY patches/actions-runner-musl-support.patch /tmp/actions-runner-musl-support.patch
-RUN cd runner-src && git apply /tmp/actions-runner-musl-support.patch
+RUN git -C runner-src apply /tmp/actions-runner-musl-support.patch
 
+WORKDIR /work/runner-src/src
 RUN set -eux; \
     case "${TARGETARCH}" in \
         amd64) MUSL_RID="linux-musl-x64" ;; \
         arm64) MUSL_RID="linux-musl-arm64" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    cd runner-src/src \
-    && ./dev.sh layout Release "${MUSL_RID}"
+    ./dev.sh layout Release "${MUSL_RID}"
 
 RUN if [ "${INCLUDE_NODE20}" != "true" ]; then \
         echo "Dropping bundled node20 (set --build-arg INCLUDE_NODE20=true to keep it)"; \
@@ -88,6 +89,7 @@ ENV LANG=en_US.UTF-8 \
 # 24+ from apk keeps pnpm/action-setup on the regular npm-based path, aligns
 # this image with current GitHub Actions JavaScript tooling, and works with
 # actions/setup-node's `cache: pnpm` flow.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
         bash \
         curl \
@@ -112,6 +114,7 @@ RUN apk add --no-cache \
 # this runner, matching the documented supported workflow path.
 # `shadow-uidmap` provides newuidmap/newgidmap, needed for user-namespace
 # handling even in this rootful/--privileged setup.
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
         buildah \
         podman \
