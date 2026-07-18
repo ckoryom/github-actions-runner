@@ -169,8 +169,8 @@ podman stop gha-runner
 | `REPO_URL` | repo scope | `https://github.com/OWNER/REPO` |
 | `ORG_NAME` | org scope | GitHub org login |
 | `ENTERPRISE_NAME` | enterprise scope | GitHub enterprise slug |
-| `RUNNER_NAME` | optional | Defaults to container hostname |
-| `RUNNER_LABELS` | optional | Comma-separated extra labels |
+| `RUNNER_NAME` | optional | Defaults to `podman-actions-runner` |
+| `RUNNER_LABELS` | optional | Always includes `podman,alpine,ephemeral,podman-actions-runner,buildah`; any user-provided labels are appended |
 | `RUNNER_GROUP` | optional | Runner group name |
 | `DISABLE_PODMAN` | optional | Skip the startup Podman priming step |
 

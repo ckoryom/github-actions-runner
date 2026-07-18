@@ -7,10 +7,26 @@ set -euo pipefail
 
 GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
 RUNNER_HOME="/home/runner/actions-runner"
-RUNNER_NAME="${RUNNER_NAME:-$(hostname)}"
-RUNNER_LABELS="${RUNNER_LABELS:-}"
+DEFAULT_RUNNER_NAME="podman-actions-runner"
+DEFAULT_RUNNER_LABELS="podman,alpine,ephemeral,podman-actions-runner,buildah"
+
+RUNNER_NAME="${RUNNER_NAME:-${DEFAULT_RUNNER_NAME}}"
+RUNNER_LABELS_INPUT="${RUNNER_LABELS:-}"
+RUNNER_LABELS="${DEFAULT_RUNNER_LABELS}"
 RUNNER_GROUP="${RUNNER_GROUP:-}"
 RUNNER_SCOPE="${RUNNER_SCOPE:-}"
+
+if [[ -n "${RUNNER_LABELS_INPUT}" ]]; then
+    IFS=',' read -r -a user_labels <<< "${RUNNER_LABELS_INPUT}"
+    for raw_label in "${user_labels[@]}"; do
+        label="$(echo "${raw_label}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        [[ -z "${label}" ]] && continue
+        case ",${RUNNER_LABELS}," in
+            *",${label},"*) ;;
+            *) RUNNER_LABELS+=",${label}" ;;
+        esac
+    done
+fi
 
 require_env() {
     local name="$1"
