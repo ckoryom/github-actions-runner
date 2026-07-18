@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/ckoryom/podman-actions-runner/compare/v1.0.0...v1.1.0) (2026-07-18)
+
+
+### Features
+
+* default and append runner labels ([39d69d7](https://github.com/ckoryom/podman-actions-runner/commit/39d69d7c521b90fcb804c96ef443e35f5cd8d1a6))
+
+
+### Bug Fixes
+
+* support alpine arm64 JS actions in runner externals ([59f6f0e](https://github.com/ckoryom/podman-actions-runner/commit/59f6f0e105f43a2b675bd5dac06a51021e880d7d))
+* support Alpine arm64 JS actions in runner image ([344f925](https://github.com/ckoryom/podman-actions-runner/commit/344f92510580894b250526bcff2ee7b3e9d62bf4))
+
 ## 1.0.0 (2026-07-18)
 
 
