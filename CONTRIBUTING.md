@@ -34,9 +34,10 @@ Releases are managed by `.github/workflows/release-please.yml` using
   (`feat:`, `fix:`, `deps:`, `docs:`) so release notes are categorized
   cleanly.
 - The release PR is generated automatically from `main`.
+- Ensure repository setting **Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests** is enabled, or configure a `RELEASE_PLEASE_TOKEN` secret (PAT/fine-grained token with `contents: write` and `pull requests: write`) for the workflow.
 - When that PR is merged, `release-please` updates `CHANGELOG.md` and creates
-  a `vX.Y.Z` tag/release; the publish workflow then pushes the matching image
-  tags.
+  a `vX.Y.Z` tag/release; the publish workflow (tag-triggered) then pushes the
+  matching image tags.
 
 ## Bumping the bundled `actions/runner` version
 
