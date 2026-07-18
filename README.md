@@ -100,7 +100,7 @@ This repo uses `release-please` to keep `CHANGELOG.md` and version tags in sync.
 - merges to `main` update/open a release PR
 - merging that release PR updates `CHANGELOG.md`, creates a GitHub release, and creates a `vX.Y.Z` tag
 - the tag triggers the publish workflow, which pushes `latest`, `X.Y.Z`, and `X.Y` image tags
-- set `RELEASE_PLEASE_TOKEN` (PAT) as a repo secret; using `GITHUB_TOKEN` will not trigger downstream workflows from release-created tags/releases
+- `release-please` uses `RELEASE_PLEASE_TOKEN` if set (recommended), otherwise `GITHUB_TOKEN`; if using `GITHUB_TOKEN`, enable **Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests**
 
 The configured initial release version is `v1.0.0`.
 
