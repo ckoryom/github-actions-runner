@@ -80,13 +80,19 @@ Published images are:
   Sigstore/OIDC — verify with:
   ```bash
   cosign verify \
-    --certificate-identity-regexp "https://github.com/ckoryom/github-actions-runner/.*" \
+    --certificate-identity-regexp "https://github.com/ckoryom/podman-actions-runner/.*" \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-    ghcr.io/ckoryom/github-actions-runner:latest
+    docker.io/ckoryom/podman-actions-runner:latest
+  cosign verify \
+    --certificate-identity-regexp "https://github.com/ckoryom/podman-actions-runner/.*" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    ghcr.io/ckoryom/podman-actions-runner:latest
   ```
 - Published with an SBOM and build provenance attestation
   ([SLSA](https://slsa.dev/)-style), viewable with
-  `gh attestation verify oci://ghcr.io/ckoryom/github-actions-runner:latest -o ckoryom`.
+  `gh attestation verify oci://docker.io/ckoryom/podman-actions-runner:latest -o ckoryom`
+  or
+  `gh attestation verify oci://ghcr.io/ckoryom/podman-actions-runner:latest -o ckoryom`.
 
 ## Reporting other concerns
 

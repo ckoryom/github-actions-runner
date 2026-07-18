@@ -66,12 +66,12 @@ FROM alpine:${ALPINE_VERSION}
 ARG RUNNER_VERSION
 ARG TARGETARCH
 
-LABEL org.opencontainers.image.title="github-actions-runner" \
+LABEL org.opencontainers.image.title="podman-actions-runner" \
       org.opencontainers.image.description="Community-maintained Alpine + Podman self-hosted GitHub Actions runner with a musl-built runner binary and fresh registration tokens on every start." \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/ckoryom/github-actions-runner" \
-      org.opencontainers.image.url="https://github.com/ckoryom/github-actions-runner" \
-      org.opencontainers.image.documentation="https://github.com/ckoryom/github-actions-runner#readme"
+      org.opencontainers.image.source="https://github.com/ckoryom/podman-actions-runner" \
+      org.opencontainers.image.url="https://github.com/ckoryom/podman-actions-runner" \
+      org.opencontainers.image.documentation="https://github.com/ckoryom/podman-actions-runner#readme"
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8 \
@@ -81,12 +81,12 @@ ENV LANG=en_US.UTF-8 \
 # Base OS deps plus Node.js/npm so common JavaScript setup actions work for
 # arbitrary consumer workflows without per-workflow bootstrapping.
 #
-# Alpine 3.23 is used here specifically because its `nodejs` package is Node
-# 24.x LTS. pnpm/action-setup falls back to the standalone `@pnpm/exe`
+# Alpine 3.23 is used here because its `nodejs` package is Node 24.x LTS.
+# pnpm/action-setup falls back to the standalone `@pnpm/exe`
 # bootstrap when the system Node is older than 22.13, and that binary is
-# currently glibc-linked; on musl/Alpine it fails to execute. Shipping Node 24
-# from apk keeps pnpm/action-setup on the regular npm-based path, aligns this
-# image with current GitHub Actions JavaScript tooling, and works with
+# currently glibc-linked; on musl/Alpine it fails to execute. Shipping Node
+# 24+ from apk keeps pnpm/action-setup on the regular npm-based path, aligns
+# this image with current GitHub Actions JavaScript tooling, and works with
 # actions/setup-node's `cache: pnpm` flow.
 RUN apk add --no-cache \
         bash \
@@ -95,25 +95,25 @@ RUN apk add --no-cache \
         git \
         nodejs \
         npm \
-        openssh-client \
         openssl \
         ca-certificates \
         tar \
         gzip \
-        sudo \
-        util-linux \
         libstdc++ \
         libgcc \
         icu-libs \
-        shadow
+    && node -e 'const maj=Number(process.versions.node.split(".")[0]); if (maj < 24) { console.error("ERROR: nodejs package must be >= 24."); process.exit(1); }'
 
-# --- Podman (replaces Docker Engine) ------------------------------------------
+# --- Podman + Buildah ---------------------------------------------------------
 # `podman` is the engine; `podman-docker` installs a `/usr/bin/docker` shim
 # script that forwards to `podman`, so existing `docker ...` invocations in
-# workflow steps and register-and-run.sh keep working unmodified.
+# workflow steps and register-and-run.sh keep working unmodified. `buildah` is
+# installed explicitly so redhat-actions/buildah-build works out of the box on
+# this runner, matching the documented supported workflow path.
 # `shadow-uidmap` provides newuidmap/newgidmap, needed for user-namespace
 # handling even in this rootful/--privileged setup.
 RUN apk add --no-cache \
+        buildah \
         podman \
         podman-docker \
         shadow-uidmap \
@@ -127,12 +127,10 @@ RUN apk add --no-cache \
 # and job-execution steps run as this user. Podman is daemonless (each
 # `podman`/`docker` invocation forks its own short-lived process), so the
 # entrypoint can `exec` straight into the runner user without a trap/cleanup
-# step. Passwordless sudo is granted for parity with common self-hosted runner
-# setups.
+# step.
 RUN addgroup docker 2>/dev/null || true \
     && adduser -D -h /home/runner -s /bin/bash runner \
-    && addgroup runner docker \
-    && echo "runner ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    && addgroup runner docker
 
 # Podman auto-detects rootless mode whenever it's invoked by a non-root user
 # (true here: actions/runner refuses to run as root, so job steps — and any

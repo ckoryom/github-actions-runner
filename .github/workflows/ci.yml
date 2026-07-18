@@ -48,11 +48,13 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: github-actions-runner:ci-alpine-podman
-      - name: Smoke test (runner + Node 24+/pnpm prerequisites)
+          tags: podman-actions-runner:ci-alpine-podman
+      - name: Smoke test (runner + Buildah + Node 24+/pnpm prerequisites)
         run: |
-          docker run --rm --user runner --entrypoint bash github-actions-runner:ci-alpine-podman \
-            -c "node -e 'const major = Number(process.versions.node.split(\".\")[0]); if (major < 24) process.exit(1)' \
+          docker run --rm --user runner --entrypoint bash podman-actions-runner:ci-alpine-podman \
+            -c "command -v buildah >/dev/null \
+              && buildah --version \
+              && node -e 'const major = Number(process.versions.node.split(\".\")[0]); if (major < 24) process.exit(1)' \
               && npm --version \
               && rm -rf /tmp/pnpm-smoke && mkdir -p /tmp/pnpm-smoke && cd /tmp/pnpm-smoke \
               && npm install --silent pnpm@10.20.0 \

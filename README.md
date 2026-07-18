@@ -1,15 +1,16 @@
 <div align="center">
 
-# 🚀 github-actions-runner
+# 🚀 podman-actions-runner
 
 **A community-maintained, Alpine + Podman self-hosted GitHub Actions runner.**
 **Small, ephemeral, GitHub App-friendly, and built for teams that want Podman instead of Docker-in-Docker.**
 
-[![Build and Publish](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/build-and-publish.yml)
-[![CI](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/ckoryom/github-actions-runner/actions/workflows/codeql.yml)
+[![Build and Publish](https://github.com/ckoryom/podman-actions-runner/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/ckoryom/podman-actions-runner/actions/workflows/build-and-publish.yml)
+[![CI](https://github.com/ckoryom/podman-actions-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/ckoryom/podman-actions-runner/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/ckoryom/podman-actions-runner/actions/workflows/codeql.yml/badge.svg)](https://github.com/ckoryom/podman-actions-runner/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fckoryom%2Fgithub--actions--runner-blue?logo=docker)](https://github.com/ckoryom/github-actions-runner/pkgs/container/github-actions-runner)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-ckoryom%2Fpodman--actions--runner-2496ED?logo=docker)](https://hub.docker.com/r/ckoryom/podman-actions-runner)
+[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fckoryom%2Fpodman--actions--runner-blue?logo=docker)](https://github.com/ckoryom/podman-actions-runner/pkgs/container/podman-actions-runner)
 [![Alpine](https://img.shields.io/badge/Base-Alpine%203.23-0D597F?logo=alpinelinux)](https://alpinelinux.org/)
 [![Podman](https://img.shields.io/badge/Engine-Podman-892CA0?logo=podman)](https://podman.io/)
 [![Community](https://img.shields.io/badge/Contributions-Welcome-brightgreen)](CONTRIBUTING.md)
@@ -20,9 +21,10 @@
 
 ## ✨ What this project is
 
-This repository ships **one** runner image:
+This repository ships one runner image to two registries:
 
-**`ghcr.io/ckoryom/github-actions-runner`**
+- **`docker.io/ckoryom/podman-actions-runner`**
+- **`ghcr.io/ckoryom/podman-actions-runner`**
 
 It is:
 
@@ -30,7 +32,7 @@ It is:
 - 🦭 **Podman-powered**
 - 🔁 **ephemeral by default**
 - 🔐 **GitHub App-ready**
-- 📦 **published to GHCR with semver tags**
+- 📦 **published to Docker Hub + GHCR with semver tags**
 
 The runner registers itself on startup, runs **exactly one job**, and removes itself when the job finishes or the container stops.
 
@@ -46,7 +48,7 @@ Most self-hosted runner images are built around **Ubuntu + Docker-in-Docker**. T
 | Container engine inside jobs | **Podman + Buildah** | Usually Docker Engine |
 | Runtime model | **Daemonless engine** | Usually background `dockerd` |
 | Runner lifecycle | **Ephemeral / one-job** | Often long-lived |
-| Footprint | **~154 MiB local amd64 build** | Usually much heavier |
+| Footprint | **~162 MiB local amd64 build** | Usually much heavier |
 | Auth story | **Fresh tokens every start/stop** | Often PAT-only or manual token flows |
 
 ### ✅ Why Podman is a better fit here
@@ -65,7 +67,8 @@ Most self-hosted runner images are built around **Ubuntu + Docker-in-Docker**. T
 The publish workflow pushes to:
 
 ```text
-ghcr.io/ckoryom/github-actions-runner
+docker.io/ckoryom/podman-actions-runner
+ghcr.io/ckoryom/podman-actions-runner
 ```
 
 Recommended tags:
@@ -77,14 +80,28 @@ Recommended tags:
 Examples:
 
 ```text
-ghcr.io/ckoryom/github-actions-runner:latest
-ghcr.io/ckoryom/github-actions-runner:1.4.0
-ghcr.io/ckoryom/github-actions-runner:1.4
+docker.io/ckoryom/podman-actions-runner:latest
+docker.io/ckoryom/podman-actions-runner:1.4.0
+docker.io/ckoryom/podman-actions-runner:1.4
+ghcr.io/ckoryom/podman-actions-runner:latest
+ghcr.io/ckoryom/podman-actions-runner:1.4.0
+ghcr.io/ckoryom/podman-actions-runner:1.4
 ```
 
 > Git release refs can still be `vX.Y.Z`; the published container tags are normalized to `X.Y.Z`.
 
-The image is also published with OCI metadata so GHCR shows a clean package description, source link, and documentation link back to this repo.
+The image is also published with OCI metadata so both registries show a clean package description, source link, and documentation link back to this repo.
+The publish workflow also syncs this README to the Docker Hub repository description on every `main` push.
+
+### Automated releases + changelog
+
+This repo uses `release-please` to keep `CHANGELOG.md` and version tags in sync.
+
+- merges to `main` update/open a release PR
+- merging that release PR updates `CHANGELOG.md`, creates a GitHub release, and creates a `vX.Y.Z` tag
+- the tag triggers the publish workflow, which pushes `X.Y.Z` and `X.Y` image tags
+
+The configured initial release version is `v1.0.0`.
 
 ---
 
@@ -112,7 +129,7 @@ podman run -d --privileged \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
   -e RUNNER_NAME=gha-runner \
-  ghcr.io/ckoryom/github-actions-runner:latest
+  docker.io/ckoryom/podman-actions-runner:latest
 ```
 
 #### Simple: PAT
@@ -125,7 +142,7 @@ podman run -d --privileged \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
   -e RUNNER_NAME=gha-runner \
-  ghcr.io/ckoryom/github-actions-runner:latest
+  docker.io/ckoryom/podman-actions-runner:latest
 ```
 
 ### 3. Useful commands
@@ -205,6 +222,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+`buildah` is installed in the runner image itself, so `redhat-actions/buildah-build` works without extra bootstrapping.
 
 ---
 
@@ -307,6 +326,7 @@ More detail: [SECURITY.md](SECURITY.md)
 
 ## 📚 Repo docs
 
+- [Changelog](CHANGELOG.md)
 - [GitHub App setup guide](docs/github-app-setup.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)

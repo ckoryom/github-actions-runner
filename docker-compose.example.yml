@@ -9,7 +9,7 @@
 # README.md for the full environment variable reference.
 services:
   runner:
-    image: ghcr.io/ckoryom/github-actions-runner:latest
+    image: docker.io/ckoryom/podman-actions-runner:latest
     # Nested Podman/buildah workloads still require elevated privileges. See
     # SECURITY.md for the threat model and deployment guidance.
     privileged: true

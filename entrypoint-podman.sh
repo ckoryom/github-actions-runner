@@ -56,7 +56,7 @@ esac
 # root, to actually absorb the warning where it would otherwise occur.
 if [[ "${DISABLE_PODMAN:-false}" != "true" ]]; then
     log "Priming Podman cgroup setup (one-time, absorbs a harmless first-run warning)..."
-    runuser -u runner -- podman run --rm alpine:3.23 true >/var/log/podman-prime.log 2>&1 || true
+    su runner -s /bin/bash -c 'podman run --rm alpine:3.23 true' >/var/log/podman-prime.log 2>&1 || true
 else
     log "DISABLE_PODMAN=true; skipping Podman priming step."
 fi
@@ -65,9 +65,9 @@ fi
 # The actions/runner binaries (config.sh/run.sh) refuse to run as root, so we
 # drop privileges to the non-root `runner` user for this step. No EXIT
 # trap/cleanup is needed here (no background daemon to stop), so we can `exec`
-# straight into register-and-run.sh via runuser.
+# straight into register-and-run.sh via su.
 export HOME=/home/runner
 export USER=runner
 export LOGNAME=runner
 
-exec runuser -u runner --preserve-environment -- /usr/local/bin/register-and-run.sh
+exec su -m runner -s /bin/bash -c '/usr/local/bin/register-and-run.sh'

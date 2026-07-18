@@ -70,7 +70,7 @@ podman run --rm --privileged \
   -e GITHUB_APP_PRIVATE_KEY="$(cat my-app.private-key.pem)" \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
-  ghcr.io/ckoryom/github-actions-runner:latest
+  docker.io/ckoryom/podman-actions-runner:latest
 ```
 
 ## Why this avoids the "expiring token" problem
