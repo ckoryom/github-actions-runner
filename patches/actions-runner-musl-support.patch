@@ -16,20 +16,25 @@ index 9c069b1..ab6acb7 100644
    <!-- Set TRACE/DEBUG vars -->
    <PropertyGroup>
 diff --git a/src/Misc/externals.sh b/src/Misc/externals.sh
-index 4330017..9851b9c 100755
+index 4330017..fe23685 100755
 --- a/src/Misc/externals.sh
 +++ b/src/Misc/externals.sh
-@@ -187,3 +187,11 @@ fi
+@@ -187,3 +187,16 @@ fi
  if [[ "$PACKAGERUNTIME" == "linux-arm" ]]; then
      acquireExternalTool "$NODE_URL/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-armv7l.tar.gz" node20 fix_nested_dir
  fi
 +
-+# musl (Alpine) host: use the Alpine-built node tarballs directly as the
-+# runner's own node20/node24 (not just the node20_alpine/node24_alpine
-+# fallback used for Alpine *job containers* on a glibc host).
++# musl (Alpine) host: use musl-built node tarballs directly as the runner's
++# own node20/node24. x64 uses actions/alpine_nodejs; arm64 uses unofficial
++# musl builds because actions/alpine_nodejs currently only publishes x64.
 +if [[ "$PACKAGERUNTIME" == "linux-musl-x64" ]]; then
 +    acquireExternalTool "$NODE_ALPINE_URL/v${NODE20_VERSION}/node-v${NODE20_VERSION}-alpine-x64.tar.gz" node20
 +    acquireExternalTool "$NODE_ALPINE_URL/v${NODE24_VERSION}/node-v${NODE24_VERSION}-alpine-x64.tar.gz" node24
++fi
++
++if [[ "$PACKAGERUNTIME" == "linux-musl-arm64" ]]; then
++    acquireExternalTool "https://unofficial-builds.nodejs.org/download/release/v${NODE20_VERSION}/node-v${NODE20_VERSION}-linux-arm64-musl.tar.gz" node20 fix_nested_dir
++    acquireExternalTool "https://unofficial-builds.nodejs.org/download/release/v${NODE24_VERSION}/node-v${NODE24_VERSION}-linux-arm64-musl.tar.gz" node24 fix_nested_dir
 +fi
 diff --git a/src/Misc/layoutroot/config.sh b/src/Misc/layoutroot/config.sh
 index 14cc6ba..318037c 100755

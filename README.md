@@ -298,6 +298,12 @@ Published as:
 - `linux/amd64`
 - `linux/arm64`
 
+For `linux/arm64` on Alpine/musl, the runner bundles `externals/node20` and
+`externals/node24` from Node's unofficial musl arm64 builds so JavaScript-based
+actions (for example `actions/checkout`) can start correctly.
+CI smoke tests validate both `linux/amd64` and `linux/arm64` builds and verify
+the runner's embedded Node runtime is executable on each.
+
 ---
 
 ## 🤝 Community project
