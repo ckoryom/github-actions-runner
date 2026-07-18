@@ -65,12 +65,12 @@ See the Quick Start in [README.md](../README.md) and
 of environment variables. At minimum you need:
 
 ```bash
-docker run --rm --privileged \
+podman run --rm --privileged \
   -e GITHUB_APP_ID=123456 \
   -e GITHUB_APP_PRIVATE_KEY="$(cat my-app.private-key.pem)" \
   -e RUNNER_SCOPE=repo \
   -e REPO_URL=https://github.com/OWNER/REPO \
-  ghcr.io/OWNER/github-actions-runner:latest
+  docker.io/ckoryom/podman-actions-runner:latest
 ```
 
 ## Why this avoids the "expiring token" problem

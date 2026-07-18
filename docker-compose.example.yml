@@ -9,9 +9,9 @@
 # README.md for the full environment variable reference.
 services:
   runner:
-    image: ghcr.io/OWNER/github-actions-runner:latest
-    # Docker-in-Docker requires elevated privileges. See SECURITY.md for the
-    # trade-offs and a rootless alternative.
+    image: docker.io/ckoryom/podman-actions-runner:latest
+    # Nested Podman/buildah workloads still require elevated privileges. See
+    # SECURITY.md for the threat model and deployment guidance.
     privileged: true
     environment:
       # --- Authentication: choose ONE of the two blocks below --------------
@@ -33,9 +33,7 @@ services:
       # ENTERPRISE_NAME: "my-enterprise"
 
       # --- Optional runner settings ----------------------------------------
-      RUNNER_NAME: "docker-runner"
-      RUNNER_LABELS: "docker,ephemeral"
+      RUNNER_NAME: "podman-runner"
+      RUNNER_LABELS: "podman,alpine,ephemeral"
       # RUNNER_GROUP: "default"
-      # DISABLE_DIND: "false"
-      # DOCKERD_STORAGE_DRIVER: "vfs" # default; nested-overlay-safe. Use "overlay2" only if your host supports nested overlayfs.
     restart: "no" # ephemeral runners exit after one job by design

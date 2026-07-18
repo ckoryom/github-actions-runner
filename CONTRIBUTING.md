@@ -10,25 +10,38 @@ here's how to get productive quickly.
 3. Validate locally before opening a PR:
    ```bash
    # Lint the Dockerfile
-   docker run --rm -i hadolint/hadolint < Dockerfile
+   docker run --rm -i hadolint/hadolint < Dockerfile.alpine-podman
 
    # Lint the shell scripts
-   docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable entrypoint.sh scripts/*.sh
+   docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable entrypoint-podman.sh scripts/*.sh
 
    # Build for your local architecture
-   docker build -t github-actions-runner:dev .
+   docker build -f Dockerfile.alpine-podman -t podman-actions-runner:dev .
 
    # Sanity-check the runner binary actually starts on this base image
-   docker run --rm --user runner --entrypoint bash github-actions-runner:dev \
-     -c "cd /home/runner/actions-runner && ./config.sh --help && ./run.sh --version"
+   docker run --rm --user runner --entrypoint bash podman-actions-runner:dev \
+     -c "buildah --version && cd /home/runner/actions-runner && ./config.sh --help && ./run.sh --version"
    ```
 4. Open a pull request against `main`. CI (`.github/workflows/ci.yml`) runs
    hadolint, ShellCheck, and a single-arch build/smoke-test automatically.
 
+## Releases and changelog
+
+Releases are managed by `.github/workflows/release-please.yml` using
+`release-please` with `CHANGELOG.md`.
+
+- Use Conventional Commit prefixes in PR titles/commits when possible
+  (`feat:`, `fix:`, `deps:`, `docs:`) so release notes are categorized
+  cleanly.
+- The release PR is generated automatically from `main`.
+- When that PR is merged, `release-please` updates `CHANGELOG.md` and creates
+  a `vX.Y.Z` tag/release; the publish workflow then pushes the matching image
+  tags.
+
 ## Bumping the bundled `actions/runner` version
 
 The runner version is pinned via the `RUNNER_VERSION` build arg at the top of
-the `Dockerfile`. Dependabot tracks the base image and our own GitHub Actions
+`Dockerfile.alpine-podman`. Dependabot tracks the base image and our own GitHub Actions
 automatically, but it does **not** track this custom build-arg pin — please
 bump it manually in a PR when a new
 [actions/runner release](https://github.com/actions/runner/releases) ships,

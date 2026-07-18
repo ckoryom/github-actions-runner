@@ -1,0 +1,160 @@
+# syntax=docker/dockerfile:1
+# ---------------------------------------------------------------------------
+# GitHub Actions ephemeral self-hosted runner
+# Alpine 3.23 + Podman, multi-arch (linux/amd64, linux/arm64)
+#
+# This is the only image variant shipped by this repository. It compiles
+# actions/runner from source against musl, installs Podman + the podman-docker
+# shim, and targets workflows that want a smaller, daemonless container engine
+# inside the runner instead of Docker-in-Docker.
+#
+# Two Alpine-specific config tweaks are required for nested
+# (--privileged-in---privileged) container execution to work at all — neither
+# is needed on a "normal" (non-nested) Podman host:
+#   1. /etc/containers/storage.conf: driver = "vfs" instead of the default
+#      "overlay" — identical rationale to the dockerd `--storage-driver=vfs`
+#      flag already used for DinD (overlay-on-overlay is unsupported).
+#   2. /etc/containers/containers.conf: cgroup_manager = "cgroupfs" instead of
+#      the default "systemd" — Alpine has no systemd, so the default silently
+#      breaks cgroup delegation for nested containers (crun/runc error:
+#      "the requested cgroup controller `pids` is not available").
+# A one-time harmless warning ("Failed to add conmon to cgroupfs sandbox
+# cgroup...") is expected on the very first Podman container ever started in
+# a given container instance (Podman lazily creates its `/libpod_parent`
+# cgroup on first use); entrypoint-podman.sh primes this once at startup so
+# it never surfaces during an actual workflow job.
+# ---------------------------------------------------------------------------
+ARG ALPINE_VERSION=3.23
+ARG DOTNET_SDK_VERSION=8.0
+ARG RUNNER_VERSION=2.335.1
+
+# --- Builder: compile actions/runner from source for linux-musl-{x64,arm64} ---
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-alpine AS builder
+
+ARG RUNNER_VERSION
+ARG TARGETARCH
+ARG INCLUDE_NODE20=false
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache bash git icu-libs curl
+
+WORKDIR /work
+
+RUN git clone --depth 1 --branch "v${RUNNER_VERSION}" \
+        https://github.com/actions/runner.git runner-src \
+    && git config --global --add safe.directory /work/runner-src
+
+COPY patches/actions-runner-musl-support.patch /tmp/actions-runner-musl-support.patch
+RUN git -C runner-src apply /tmp/actions-runner-musl-support.patch
+
+WORKDIR /work/runner-src/src
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) MUSL_RID="linux-musl-x64" ;; \
+        arm64) MUSL_RID="linux-musl-arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    ./dev.sh layout Release "${MUSL_RID}"
+
+RUN if [ "${INCLUDE_NODE20}" != "true" ]; then \
+        echo "Dropping bundled node20 (set --build-arg INCLUDE_NODE20=true to keep it)"; \
+        rm -rf /work/runner-src/_layout/externals/node20; \
+    fi
+
+# --- Final: Alpine runtime image ------------------------------------------
+FROM alpine:${ALPINE_VERSION}
+
+ARG RUNNER_VERSION
+ARG TARGETARCH
+
+LABEL org.opencontainers.image.title="podman-actions-runner" \
+      org.opencontainers.image.description="Community-maintained Alpine + Podman self-hosted GitHub Actions runner with a musl-built runner binary and fresh registration tokens on every start." \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.source="https://github.com/ckoryom/podman-actions-runner" \
+      org.opencontainers.image.url="https://github.com/ckoryom/podman-actions-runner" \
+      org.opencontainers.image.documentation="https://github.com/ckoryom/podman-actions-runner#readme"
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=C.UTF-8
+
+# --- Base OS deps -------------------------------------------------------------
+# Base OS deps plus Node.js/npm so common JavaScript setup actions work for
+# arbitrary consumer workflows without per-workflow bootstrapping.
+#
+# Alpine 3.23 is used here because its `nodejs` package is Node 24.x LTS.
+# pnpm/action-setup falls back to the standalone `@pnpm/exe`
+# bootstrap when the system Node is older than 22.13, and that binary is
+# currently glibc-linked; on musl/Alpine it fails to execute. Shipping Node
+# 24+ from apk keeps pnpm/action-setup on the regular npm-based path, aligns
+# this image with current GitHub Actions JavaScript tooling, and works with
+# actions/setup-node's `cache: pnpm` flow.
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+        bash \
+        curl \
+        jq \
+        git \
+        nodejs \
+        npm \
+        openssl \
+        ca-certificates \
+        tar \
+        gzip \
+        libstdc++ \
+        libgcc \
+        icu-libs \
+    && node -e 'const maj=Number(process.versions.node.split(".")[0]); if (maj < 24) { console.error("ERROR: nodejs package must be >= 24."); process.exit(1); }'
+
+# --- Podman + Buildah ---------------------------------------------------------
+# `podman` is the engine; `podman-docker` installs a `/usr/bin/docker` shim
+# script that forwards to `podman`, so existing `docker ...` invocations in
+# workflow steps and register-and-run.sh keep working unmodified. `buildah` is
+# installed explicitly so redhat-actions/buildah-build works out of the box on
+# this runner, matching the documented supported workflow path.
+# `shadow-uidmap` provides newuidmap/newgidmap, needed for user-namespace
+# handling even in this rootful/--privileged setup.
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+        buildah \
+        podman \
+        podman-docker \
+        shadow-uidmap \
+    && sed -i 's/^driver = "overlay"/driver = "vfs"/' /etc/containers/storage.conf \
+    && sed -i 's/^#cgroup_manager = "systemd"/cgroup_manager = "cgroupfs"/' /etc/containers/containers.conf \
+    && mkdir -p /etc/containers \
+    && touch /etc/containers/nodocker
+
+# --- Non-root runner user ------------------------------------------------------
+# actions/runner refuses to run config.sh/run.sh as root, so the registration
+# and job-execution steps run as this user. Podman is daemonless (each
+# `podman`/`docker` invocation forks its own short-lived process), so the
+# entrypoint can `exec` straight into the runner user without a trap/cleanup
+# step.
+RUN addgroup docker 2>/dev/null || true \
+    && adduser -D -h /home/runner -s /bin/bash runner \
+    && addgroup runner docker
+
+# Podman auto-detects rootless mode whenever it's invoked by a non-root user
+# (true here: actions/runner refuses to run as root, so job steps — and any
+# `docker`/`podman` command they issue — execute as `runner`). Rootless
+# Podman requires a subordinate UID/GID range for that user to build its user
+# namespace; without this it fails with "no subuid ranges found for user
+# ... in /etc/subuid". `shadow-uidmap` (installed above) provides the
+# newuidmap/newgidmap helpers rootless mode needs to apply this range.
+RUN echo "runner:100000:65536" >> /etc/subuid \
+    && echo "runner:100000:65536" >> /etc/subgid
+
+# --- Copy the musl-built actions/runner layout from the builder stage ---------
+COPY --from=builder --chown=runner:runner /work/runner-src/_layout /home/runner/actions-runner
+
+WORKDIR /home/runner/actions-runner
+
+COPY --chmod=0755 entrypoint-podman.sh /usr/local/bin/entrypoint.sh
+COPY --chmod=0755 scripts/generate-installation-token.sh /usr/local/bin/generate-installation-token.sh
+COPY --chmod=0755 scripts/register-and-run.sh /usr/local/bin/register-and-run.sh
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD pgrep -f Runner.Listener >/dev/null 2>&1
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
