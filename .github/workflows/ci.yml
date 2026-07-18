@@ -32,8 +32,18 @@ jobs:
           severity: warning
 
   build-check-alpine-podman:
-    name: Build Podman image (amd64, no push)
+    name: Build Podman image (${{ matrix.tag_suffix }}, no push)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            run_platform: linux/amd64
+            tag_suffix: amd64
+          - platform: linux/arm64
+            run_platform: linux/arm64
+            tag_suffix: arm64
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Set up QEMU
@@ -45,15 +55,17 @@ jobs:
         with:
           context: .
           file: Dockerfile.alpine-podman
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           push: false
           load: true
-          tags: podman-actions-runner:ci-alpine-podman
-      - name: Smoke test (runner + Buildah + Node 24+/pnpm prerequisites)
+          tags: podman-actions-runner:ci-alpine-podman-${{ matrix.tag_suffix }}
+      - name: Smoke test (runner + Buildah + runner node24 + Node 24+/pnpm prerequisites)
         run: |
-          docker run --rm --user runner --entrypoint bash podman-actions-runner:ci-alpine-podman \
+          docker run --rm --platform "${{ matrix.run_platform }}" --user runner --entrypoint bash podman-actions-runner:ci-alpine-podman-${{ matrix.tag_suffix }} \
             -c "command -v buildah >/dev/null \
               && buildah --version \
+              && [ -x /home/runner/actions-runner/externals/node24/bin/node ] \
+              && /home/runner/actions-runner/externals/node24/bin/node --version \
               && node -e 'const major = Number(process.versions.node.split(\".\")[0]); if (major < 24) process.exit(1)' \
               && npm --version \
               && rm -rf /tmp/pnpm-smoke && mkdir -p /tmp/pnpm-smoke && cd /tmp/pnpm-smoke \

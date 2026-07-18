@@ -169,8 +169,8 @@ podman stop gha-runner
 | `REPO_URL` | repo scope | `https://github.com/OWNER/REPO` |
 | `ORG_NAME` | org scope | GitHub org login |
 | `ENTERPRISE_NAME` | enterprise scope | GitHub enterprise slug |
-| `RUNNER_NAME` | optional | Defaults to container hostname |
-| `RUNNER_LABELS` | optional | Comma-separated extra labels |
+| `RUNNER_NAME` | optional | Defaults to `podman-actions-runner` |
+| `RUNNER_LABELS` | optional | Always includes `podman,alpine,ephemeral,podman-actions-runner,buildah`; any user-provided labels are appended |
 | `RUNNER_GROUP` | optional | Runner group name |
 | `DISABLE_PODMAN` | optional | Skip the startup Podman priming step |
 
@@ -297,6 +297,12 @@ Published as:
 
 - `linux/amd64`
 - `linux/arm64`
+
+For `linux/arm64` on Alpine/musl, the runner bundles `externals/node20` and
+`externals/node24` from Node's unofficial musl arm64 builds so JavaScript-based
+actions (for example `actions/checkout`) can start correctly.
+CI smoke tests validate both `linux/amd64` and `linux/arm64` builds and verify
+the runner's embedded Node runtime is executable on each.
 
 ---
 

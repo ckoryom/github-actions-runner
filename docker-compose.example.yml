@@ -33,7 +33,12 @@ services:
       # ENTERPRISE_NAME: "my-enterprise"
 
       # --- Optional runner settings ----------------------------------------
-      RUNNER_NAME: "podman-runner"
-      RUNNER_LABELS: "podman,alpine,ephemeral"
+      # Defaults if omitted:
+      # RUNNER_NAME: "podman-actions-runner"
+      # RUNNER_LABELS always includes:
+      # "podman,alpine,ephemeral,podman-actions-runner,buildah"
+      # Any custom RUNNER_LABELS you set are appended to that base list.
+      RUNNER_NAME: "podman-actions-runner"
+      RUNNER_LABELS: "podman,alpine,ephemeral,podman-actions-runner,buildah"
       # RUNNER_GROUP: "default"
     restart: "no" # ephemeral runners exit after one job by design

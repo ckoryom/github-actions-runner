@@ -26,7 +26,9 @@ What it changes, in the vendored `actions/runner` source tree:
 - `src/Misc/externals.sh` — for `linux-musl-x64`, downloads the
   Alpine-built Node tarballs (`actions/alpine_nodejs` releases — the same
   ones GitHub already ships for Alpine *job containers*) as the runner's own
-  bundled `node20`/`node24`, since the runner host itself is musl here.
+  bundled `node20`/`node24`, since the runner host itself is musl here. For
+  `linux-musl-arm64`, downloads musl arm64 tarballs from Node's unofficial
+  builds so JS actions can run on Alpine arm64.
 - `src/Misc/layoutroot/config.sh` — the stock dependency check shells out to
   `ldconfig -NXv | grep libicu` to verify ICU is installed. musl's
   `ldconfig` doesn't populate a cache the way glibc's does, so this check is
@@ -34,9 +36,9 @@ What it changes, in the vendored `actions/runner` source tree:
   patch detects musl via `ldd --version` and instead confirms libicu is
   resolvable directly.
 
-Known limitation: there is no official Alpine-built Node tarball for arm64,
-so `linux-musl-arm64` currently has no bundled Node runtime for JS actions
-— non-JS (composite/Docker/binary) actions and shell steps are unaffected.
+Known limitation: `linux-musl-arm64` currently relies on Node's unofficial
+musl arm64 builds for the runner's embedded Node runtime because
+`actions/alpine_nodejs` only publishes x64 assets.
 
 Regenerate this patch after bumping `RUNNER_VERSION` by re-applying the same
 changes against the new tag and re-diffing, since upstream file contents
