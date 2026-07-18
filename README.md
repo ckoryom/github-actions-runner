@@ -73,7 +73,7 @@ ghcr.io/ckoryom/podman-actions-runner
 
 Recommended tags:
 
-- `latest` — current default branch image
+- `latest` — newest published release image
 - `X.Y.Z` — exact release tag
 - `X.Y` — rolling minor line
 
@@ -91,7 +91,7 @@ ghcr.io/ckoryom/podman-actions-runner:1.4
 > Git release refs can still be `vX.Y.Z`; the published container tags are normalized to `X.Y.Z`.
 
 The image is also published with OCI metadata so both registries show a clean package description, source link, and documentation link back to this repo.
-The publish workflow also syncs this README to the Docker Hub repository description on every `main` push.
+The publish workflow also syncs this README to the Docker Hub repository description on each release tag publish.
 
 ### Automated releases + changelog
 
@@ -99,7 +99,8 @@ This repo uses `release-please` to keep `CHANGELOG.md` and version tags in sync.
 
 - merges to `main` update/open a release PR
 - merging that release PR updates `CHANGELOG.md`, creates a GitHub release, and creates a `vX.Y.Z` tag
-- the tag triggers the publish workflow, which pushes `X.Y.Z` and `X.Y` image tags
+- the tag triggers the publish workflow, which pushes `latest`, `X.Y.Z`, and `X.Y` image tags
+- `release-please` uses `RELEASE_PLEASE_TOKEN` if set (recommended), otherwise `GITHUB_TOKEN`; if using `GITHUB_TOKEN`, enable **Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests**
 
 The configured initial release version is `v1.0.0`.
 
